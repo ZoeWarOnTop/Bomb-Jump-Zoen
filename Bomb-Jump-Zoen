@@ -4,10 +4,11 @@
 --// Click while falling = immediate jump
 --// Explosion applies no force to the character
 --// Bomb appears at the feet and explodes 1 second after touching the ground
---// Includes a customizable cooldown menu
+--// Includes a customizable cooldown menu and Big Button Auto BJ
 
 local Players = game:GetService("Players")
 local Debris = game:GetService("Debris")
+local UserInputService = game:GetService("UserInputService")
 
 local Player = Players.LocalPlayer
 local Backpack = Player:WaitForChild("Backpack")
@@ -92,7 +93,7 @@ ButtonStroke.Parent = MenuButton
 
 local MenuFrame = Instance.new("Frame")
 MenuFrame.Name = "MenuFrame"
-MenuFrame.Size = UDim2.new(0, 220, 0, 135)
+MenuFrame.Size = UDim2.new(0, 220, 0, 180)
 MenuFrame.Position = UDim2.new(0.5, -110, 0.4, 0)
 
 MenuFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
@@ -194,6 +195,35 @@ local SaveStroke = Instance.new("UIStroke")
 SaveStroke.Color = Color3.fromRGB(55, 55, 55)
 SaveStroke.Thickness = 1
 SaveStroke.Parent = SaveButton
+
+--==================================================
+-- BIG BUTTON AUTO BJ OPTION
+--==================================================
+
+local BigButtonOption = Instance.new("TextButton")
+
+BigButtonOption.Name = "BigButtonAutoBJ"
+BigButtonOption.Size = UDim2.new(1, -24, 0, 38)
+BigButtonOption.Position = UDim2.new(0, 12, 0, 115)
+
+BigButtonOption.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+BigButtonOption.TextColor3 = Color3.fromRGB(235, 235, 235)
+
+BigButtonOption.Text = "Big Button Auto BJ"
+BigButtonOption.TextSize = 12
+BigButtonOption.Font = Enum.Font.GothamBold
+
+BigButtonOption.AutoButtonColor = true
+BigButtonOption.Parent = MenuFrame
+
+local BigButtonOptionCorner = Instance.new("UICorner")
+BigButtonOptionCorner.CornerRadius = UDim.new(0, 9)
+BigButtonOptionCorner.Parent = BigButtonOption
+
+local BigButtonOptionStroke = Instance.new("UIStroke")
+BigButtonOptionStroke.Color = Color3.fromRGB(55, 55, 55)
+BigButtonOptionStroke.Thickness = 1
+BigButtonOptionStroke.Parent = BigButtonOption
 
 --==================================================
 -- OPEN / CLOSE MENU
@@ -335,8 +365,7 @@ local function CreateBomb(Position)
 			TouchConnection = nil
 		end
 
-		local ExplosionPosition =
-			Bomb.Position
+		local ExplosionPosition = Bomb.Position
 
 		Bomb.Transparency = 1
 
@@ -344,29 +373,20 @@ local function CreateBomb(Position)
 		-- VISUAL FLASH
 		--==================================================
 
-		local Flash =
-			Instance.new("Part")
+		local Flash = Instance.new("Part")
 
 		Flash.Name = "BombFlash"
 		Flash.Shape = Enum.PartType.Ball
-
-		Flash.Size =
-			Vector3.new(1, 1, 1)
-
-		Flash.Position =
-			ExplosionPosition
+		Flash.Size = Vector3.new(1, 1, 1)
+		Flash.Position = ExplosionPosition
 
 		Flash.Anchored = true
 		Flash.CanCollide = false
 		Flash.CanTouch = false
 		Flash.CanQuery = false
 
-		Flash.Material =
-			Enum.Material.Neon
-
-		Flash.Color =
-			Color3.fromRGB(255, 220, 70)
-
+		Flash.Material = Enum.Material.Neon
+		Flash.Color = Color3.fromRGB(255, 220, 70)
 		Flash.Transparency = 0.05
 
 		Flash.Parent = workspace
@@ -375,17 +395,11 @@ local function CreateBomb(Position)
 		-- EXPLOSION PARTICLES
 		--==================================================
 
-		local ParticlePart =
-			Instance.new("Part")
+		local ParticlePart = Instance.new("Part")
 
-		ParticlePart.Name =
-			"BombExplosionParticles"
-
-		ParticlePart.Size =
-			Vector3.new(1, 1, 1)
-
-		ParticlePart.Position =
-			ExplosionPosition
+		ParticlePart.Name = "BombExplosionParticles"
+		ParticlePart.Size = Vector3.new(1, 1, 1)
+		ParticlePart.Position = ExplosionPosition
 
 		ParticlePart.Anchored = true
 		ParticlePart.CanCollide = false
@@ -393,49 +407,34 @@ local function CreateBomb(Position)
 		ParticlePart.CanQuery = false
 
 		ParticlePart.Transparency = 1
+		ParticlePart.Parent = workspace
 
-		ParticlePart.Parent =
-			workspace
-
-		local ExplosionParticles =
-			Instance.new("ParticleEmitter")
+		local ExplosionParticles = Instance.new("ParticleEmitter")
 
 		ExplosionParticles.Texture =
 			"rbxasset://textures/particles/sparkles_main.dds"
 
 		ExplosionParticles.Rate = 0
-
-		ExplosionParticles.Lifetime =
-			NumberRange.new(0.3, 0.65)
-
-		ExplosionParticles.Speed =
-			NumberRange.new(8, 22)
-
-		ExplosionParticles.SpreadAngle =
-			Vector2.new(360, 360)
-
+		ExplosionParticles.Lifetime = NumberRange.new(0.3, 0.65)
+		ExplosionParticles.Speed = NumberRange.new(8, 22)
+		ExplosionParticles.SpreadAngle = Vector2.new(360, 360)
 		ExplosionParticles.LightEmission = 1
 
-		ExplosionParticles.Size =
-			NumberSequence.new({
-				NumberSequenceKeypoint.new(0, 0.45),
-				NumberSequenceKeypoint.new(0.25, 0.8),
-				NumberSequenceKeypoint.new(1, 0)
-			})
+		ExplosionParticles.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.45),
+			NumberSequenceKeypoint.new(0.25, 0.8),
+			NumberSequenceKeypoint.new(1, 0)
+		})
 
-		ExplosionParticles.Color =
-			ColorSequence.new(
-				Color3.fromRGB(255, 245, 110),
-				Color3.fromRGB(255, 110, 10)
-			)
+		ExplosionParticles.Color = ColorSequence.new(
+			Color3.fromRGB(255, 245, 110),
+			Color3.fromRGB(255, 110, 10)
+		)
 
-		ExplosionParticles.Parent =
-			ParticlePart
-
+		ExplosionParticles.Parent = ParticlePart
 		ExplosionParticles:Emit(85)
 
 		-- No physical explosion.
-		-- The jump already happened when the player clicked.
 
 		task.spawn(function()
 
@@ -445,19 +444,16 @@ local function CreateBomb(Position)
 					break
 				end
 
-				local Size =
-					1 + i * 0.7
+				local Size = 1 + i * 0.7
 
-				Flash.Size =
-					Vector3.new(
-						Size,
-						Size,
-						Size
-					)
+				Flash.Size = Vector3.new(
+					Size,
+					Size,
+					Size
+				)
 
 				Flash.Transparency =
-					0.05 +
-					(i / 12) * 0.95
+					0.05 + (i / 12) * 0.95
 
 				task.wait(0.02)
 
@@ -469,10 +465,7 @@ local function CreateBomb(Position)
 
 		end)
 
-		Debris:AddItem(
-			ParticlePart,
-			0.8
-		)
+		Debris:AddItem(ParticlePart, 0.8)
 
 		Bomb:Destroy()
 
@@ -492,12 +485,10 @@ local function CreateBomb(Position)
 			return
 		end
 
-		-- Ignore the player's character.
 		if Character and Hit:IsDescendantOf(Character) then
 			return
 		end
 
-		-- Start the 1 second countdown after touching a surface.
 		Exploded = true
 
 		task.delay(1, function()
@@ -536,23 +527,12 @@ Tool.Activated:Connect(function()
 		return
 	end
 
-	--==================================================
-	-- MAKE SURE BOMB IS EQUIPPED
-	--==================================================
-
 	if Tool.Parent ~= Character then
 		return
 	end
 
-	--==================================================
-	-- ONLY ACTIVATE WHILE FALLING
-	--==================================================
-
-	local State =
-		Humanoid:GetState()
-
-	local VerticalVelocity =
-		Root.AssemblyLinearVelocity.Y
+	local State = Humanoid:GetState()
+	local VerticalVelocity = Root.AssemblyLinearVelocity.Y
 
 	local IsFalling =
 		State == Enum.HumanoidStateType.Freefall
@@ -568,15 +548,13 @@ Tool.Activated:Connect(function()
 	-- IMMEDIATE JUMP
 	--==================================================
 
-	local CurrentVelocity =
-		Root.AssemblyLinearVelocity
+	local CurrentVelocity = Root.AssemblyLinearVelocity
 
 	local JumpVelocity
 
 	if Humanoid.UseJumpPower then
 
-		JumpVelocity =
-			Humanoid.JumpPower
+		JumpVelocity = Humanoid.JumpPower
 
 	else
 
@@ -589,12 +567,11 @@ Tool.Activated:Connect(function()
 
 	end
 
-	Root.AssemblyLinearVelocity =
-		Vector3.new(
-			CurrentVelocity.X,
-			JumpVelocity,
-			CurrentVelocity.Z
-		)
+	Root.AssemblyLinearVelocity = Vector3.new(
+		CurrentVelocity.X,
+		JumpVelocity,
+		CurrentVelocity.Z
+	)
 
 	--==================================================
 	-- HIDE HANDLE
@@ -614,13 +591,7 @@ Tool.Activated:Connect(function()
 		FeetPosition +
 		Vector3.new(0, 0.45, 0)
 
-	--==================================================
-	-- CREATE BOMB
-	--==================================================
-
-	CreateBomb(
-		BombPosition
-	)
+	CreateBomb(BombPosition)
 
 	--==================================================
 	-- CUSTOMIZABLE COOLDOWN
@@ -637,5 +608,243 @@ Tool.Activated:Connect(function()
 	task.delay(Config.Cooldown, function()
 		Cooldown = false
 	end)
+
+end)
+
+--==================================================
+-- BIG BUTTON AUTO BJ
+--==================================================
+
+local BigButtonEnabled = false
+local BigButtonUnlocked = false
+
+local BigButton = Instance.new("TextButton")
+
+BigButton.Name = "BigButtonAutoBJ"
+BigButton.Size = UDim2.new(0, 115, 0, 115)
+BigButton.Position = UDim2.new(0.5, -57, 0.65, 0)
+
+BigButton.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+BigButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+BigButton.Text = "💣"
+BigButton.TextSize = 52
+BigButton.Font = Enum.Font.GothamBold
+
+BigButton.AutoButtonColor = true
+BigButton.Active = true
+BigButton.Visible = false
+BigButton.Parent = ScreenGui
+
+local BigButtonCorner = Instance.new("UICorner")
+BigButtonCorner.CornerRadius = UDim.new(0, 18)
+BigButtonCorner.Parent = BigButton
+
+local BigButtonStroke = Instance.new("UIStroke")
+BigButtonStroke.Color = Color3.fromRGB(255, 255, 255)
+BigButtonStroke.Thickness = 2
+BigButtonStroke.Parent = BigButton
+
+--==================================================
+-- LOCK BUTTON
+--==================================================
+
+local LockButton = Instance.new("TextButton")
+
+LockButton.Name = "BigButtonLock"
+LockButton.Size = UDim2.new(0, 38, 0, 38)
+
+LockButton.Position = UDim2.new(
+	0.5,
+	65,
+	0.65,
+	39
+)
+
+LockButton.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+LockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+LockButton.Text = "🔒"
+LockButton.TextSize = 21
+LockButton.Font = Enum.Font.GothamBold
+
+LockButton.AutoButtonColor = true
+LockButton.Active = true
+LockButton.Visible = false
+LockButton.Parent = ScreenGui
+
+local LockCorner = Instance.new("UICorner")
+LockCorner.CornerRadius = UDim.new(0, 10)
+LockCorner.Parent = LockButton
+
+local LockStroke = Instance.new("UIStroke")
+LockStroke.Color = Color3.fromRGB(255, 255, 255)
+LockStroke.Thickness = 2
+LockStroke.Parent = LockButton
+
+--==================================================
+-- ENABLE BIG BUTTON
+--==================================================
+
+BigButtonOption.MouseButton1Click:Connect(function()
+
+	BigButtonEnabled = not BigButtonEnabled
+
+	BigButton.Visible = BigButtonEnabled
+	LockButton.Visible = BigButtonEnabled
+
+	if BigButtonEnabled then
+		BigButtonOption.Text = "Big Button Auto BJ: ON"
+	else
+		BigButtonOption.Text = "Big Button Auto BJ"
+	end
+
+end)
+
+--==================================================
+-- LOCK / UNLOCK
+--==================================================
+
+LockButton.MouseButton1Click:Connect(function()
+
+	BigButtonUnlocked = not BigButtonUnlocked
+
+	if BigButtonUnlocked then
+		LockButton.Text = "🔓"
+	else
+		LockButton.Text = "🔒"
+	end
+
+end)
+
+--==================================================
+-- BIG BUTTON DRAG
+--==================================================
+
+local Dragging = false
+local DragInput
+local DragStart
+local StartPosition
+local WasDragged = false
+
+local function UpdateBigButton(Input)
+
+	if not BigButtonUnlocked then
+		return
+	end
+
+	local Delta = Input.Position - DragStart
+
+	if Delta.Magnitude > 5 then
+		WasDragged = true
+	end
+
+	BigButton.Position = UDim2.new(
+		StartPosition.X.Scale,
+		StartPosition.X.Offset + Delta.X,
+		StartPosition.Y.Scale,
+		StartPosition.Y.Offset + Delta.Y
+	)
+
+	LockButton.Position = UDim2.new(
+		BigButton.Position.X.Scale,
+		BigButton.Position.X.Offset + 130,
+		BigButton.Position.Y.Scale,
+		BigButton.Position.Y.Offset + 39
+	)
+
+end
+
+BigButton.InputBegan:Connect(function(Input)
+
+	if not BigButtonUnlocked then
+		return
+	end
+
+	if Input.UserInputType == Enum.UserInputType.MouseButton1
+		or Input.UserInputType == Enum.UserInputType.Touch then
+
+		Dragging = true
+		WasDragged = false
+
+		DragStart = Input.Position
+		StartPosition = BigButton.Position
+		DragInput = Input
+
+	end
+
+end)
+
+BigButton.InputChanged:Connect(function(Input)
+
+	if Input.UserInputType == Enum.UserInputType.MouseMovement
+		or Input.UserInputType == Enum.UserInputType.Touch then
+
+		DragInput = Input
+
+	end
+
+end)
+
+UserInputService.InputChanged:Connect(function(Input)
+
+	if Dragging
+		and BigButtonUnlocked
+		and Input == DragInput then
+
+		UpdateBigButton(Input)
+
+	end
+
+end)
+
+UserInputService.InputEnded:Connect(function(Input)
+
+	if Input == DragInput then
+
+		Dragging = false
+		DragInput = nil
+
+	end
+
+end)
+
+--==================================================
+-- BIG BUTTON ACTIVATION
+--==================================================
+
+BigButton.MouseButton1Click:Connect(function()
+
+	if WasDragged then
+		WasDragged = false
+		return
+	end
+
+	if not Character
+		or not Humanoid
+		or Humanoid.Health <= 0
+		or not Tool
+		or not Tool.Parent then
+
+		return
+	end
+
+	if Tool.Parent == Character then
+		return
+	end
+
+	Humanoid:EquipTool(Tool)
+
+	task.wait()
+
+	if Tool.Parent == Character then
+		Tool:Activate()
+	end
+
+	task.wait()
+
+	if Humanoid and Humanoid.Parent then
+		Humanoid:UnequipTools()
+	end
 
 end)
