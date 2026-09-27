@@ -1,21 +1,31 @@
 --// .ZOEWAR - BOMB JUMP
---// Só ativa quando estiver FALLING/CAINDO
---// Precisa estar com a Bomb equipada
---// Clique durante a queda = pulo imediato
---// A explosão NÃO aplica nenhuma força no personagem
---// A bomba aparece nos pés, cai, rola, freia e queima o pavio
+--// Only activates while FALLING
+--// Requires the Bomb to be equipped
+--// Click while falling = immediate jump
+--// Explosion applies no force to the character
+--// Bomb appears at the feet, rolls, slows down and burns the fuse
+--// Includes a customizable cooldown menu
 
 local Players = game:GetService("Players")
 local Debris = game:GetService("Debris")
 
 local Player = Players.LocalPlayer
 local Backpack = Player:WaitForChild("Backpack")
+local PlayerGui = Player:WaitForChild("PlayerGui")
 
 local Character
 local Humanoid
 local Root
 
 local Cooldown = false
+
+--==================================================
+-- CONFIGURATION
+--==================================================
+
+local Config = {
+	Cooldown = 2
+}
 
 --==================================================
 -- CHARACTER
@@ -32,6 +42,182 @@ SetupCharacter(Player.Character or Player.CharacterAdded:Wait())
 
 Player.CharacterAdded:Connect(function(Char)
 	SetupCharacter(Char)
+end)
+
+--==================================================
+-- MENU
+--==================================================
+
+local OldGui = PlayerGui:FindFirstChild("ZoeWar_Bomb_Menu")
+
+if OldGui then
+	OldGui:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ZoeWar_Bomb_Menu"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
+
+-- Small draggable Menu button
+local MenuButton = Instance.new("TextButton")
+MenuButton.Name = "Menu"
+MenuButton.Size = UDim2.new(0, 60, 0, 32)
+MenuButton.Position = UDim2.new(0, 12, 0.5, -16)
+
+MenuButton.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+MenuButton.TextColor3 = Color3.fromRGB(235, 235, 235)
+
+MenuButton.Text = "Menu"
+MenuButton.TextSize = 13
+MenuButton.Font = Enum.Font.GothamBold
+
+MenuButton.AutoButtonColor = true
+MenuButton.Active = true
+MenuButton.Draggable = true
+
+MenuButton.Parent = ScreenGui
+
+local ButtonCorner = Instance.new("UICorner")
+ButtonCorner.CornerRadius = UDim.new(0, 9)
+ButtonCorner.Parent = MenuButton
+
+local ButtonStroke = Instance.new("UIStroke")
+ButtonStroke.Color = Color3.fromRGB(55, 55, 55)
+ButtonStroke.Thickness = 1
+ButtonStroke.Parent = MenuButton
+
+--==================================================
+-- MENU FRAME
+--==================================================
+
+local MenuFrame = Instance.new("Frame")
+MenuFrame.Name = "MenuFrame"
+MenuFrame.Size = UDim2.new(0, 220, 0, 135)
+MenuFrame.Position = UDim2.new(0.5, -110, 0.4, 0)
+
+MenuFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+MenuFrame.Visible = false
+MenuFrame.Parent = ScreenGui
+
+local FrameCorner = Instance.new("UICorner")
+FrameCorner.CornerRadius = UDim.new(0, 14)
+FrameCorner.Parent = MenuFrame
+
+local FrameStroke = Instance.new("UIStroke")
+FrameStroke.Color = Color3.fromRGB(50, 50, 50)
+FrameStroke.Thickness = 1
+FrameStroke.Parent = MenuFrame
+
+--==================================================
+-- TITLE
+--==================================================
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -20, 0, 30)
+Title.Position = UDim2.new(0, 10, 0, 8)
+
+Title.BackgroundTransparency = 1
+Title.Text = "Bomb Settings"
+Title.TextColor3 = Color3.fromRGB(235, 235, 235)
+
+Title.TextSize = 15
+Title.Font = Enum.Font.GothamBold
+Title.Parent = MenuFrame
+
+--==================================================
+-- DESCRIPTION
+--==================================================
+
+local Description = Instance.new("TextLabel")
+Description.Size = UDim2.new(1, -20, 0, 20)
+Description.Position = UDim2.new(0, 10, 0, 36)
+
+Description.BackgroundTransparency = 1
+Description.Text = "Cooldown in seconds"
+Description.TextColor3 = Color3.fromRGB(145, 145, 145)
+
+Description.TextSize = 12
+Description.Font = Enum.Font.Gotham
+Description.Parent = MenuFrame
+
+--==================================================
+-- INPUT
+--==================================================
+
+local Input = Instance.new("TextBox")
+Input.Size = UDim2.new(0, 125, 0, 34)
+Input.Position = UDim2.new(0, 12, 0, 67)
+
+Input.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+Input.TextColor3 = Color3.fromRGB(235, 235, 235)
+
+Input.Text = tostring(Config.Cooldown)
+Input.PlaceholderText = "Seconds"
+
+Input.TextSize = 13
+Input.Font = Enum.Font.Gotham
+
+Input.ClearTextOnFocus = false
+Input.Parent = MenuFrame
+
+local InputCorner = Instance.new("UICorner")
+InputCorner.CornerRadius = UDim.new(0, 9)
+InputCorner.Parent = Input
+
+local InputStroke = Instance.new("UIStroke")
+InputStroke.Color = Color3.fromRGB(55, 55, 55)
+InputStroke.Thickness = 1
+InputStroke.Parent = Input
+
+--==================================================
+-- SAVE BUTTON
+--==================================================
+
+local SaveButton = Instance.new("TextButton")
+SaveButton.Size = UDim2.new(0, 65, 0, 34)
+SaveButton.Position = UDim2.new(1, -77, 0, 67)
+
+SaveButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+SaveButton.TextColor3 = Color3.fromRGB(235, 235, 235)
+
+SaveButton.Text = "Save"
+SaveButton.TextSize = 12
+SaveButton.Font = Enum.Font.GothamBold
+
+SaveButton.Parent = MenuFrame
+
+local SaveCorner = Instance.new("UICorner")
+SaveCorner.CornerRadius = UDim.new(0, 9)
+SaveCorner.Parent = SaveButton
+
+local SaveStroke = Instance.new("UIStroke")
+SaveStroke.Color = Color3.fromRGB(55, 55, 55)
+SaveStroke.Thickness = 1
+SaveStroke.Parent = SaveButton
+
+--==================================================
+-- OPEN / CLOSE MENU
+--==================================================
+
+MenuButton.MouseButton1Click:Connect(function()
+	MenuFrame.Visible = not MenuFrame.Visible
+end)
+
+--==================================================
+-- SAVE COOLDOWN
+--==================================================
+
+SaveButton.MouseButton1Click:Connect(function()
+
+	local Value = tonumber(Input.Text)
+
+	if Value and Value >= 0 then
+		Config.Cooldown = Value
+		Input.Text = tostring(Value)
+	end
+
+	MenuFrame.Visible = false
 end)
 
 --==================================================
@@ -75,7 +261,7 @@ Handle.Massless = true
 Handle.Parent = Tool
 
 --==================================================
--- CRIAR BOMBA
+-- CREATE BOMB
 --==================================================
 
 local function CreateBomb(Position, Direction)
@@ -107,7 +293,7 @@ local function CreateBomb(Position, Direction)
 	Bomb.Parent = workspace
 
 	--==================================================
-	-- IMPEDIR A BOMBA DE BATER NO PLAYER
+	-- PREVENT BOMB FROM COLLIDING WITH PLAYER
 	--==================================================
 
 	if Character then
@@ -131,7 +317,7 @@ local function CreateBomb(Position, Direction)
 	end
 
 	--==================================================
-	-- PAVIO MAIOR
+	-- FUSE
 	--==================================================
 
 	local Fuse = Instance.new("Part")
@@ -166,13 +352,14 @@ local function CreateBomb(Position, Direction)
 	FuseWeld.Parent = Fuse
 
 	--==================================================
-	-- LUZ
+	-- LIGHT
 	--==================================================
 
 	local FuseLight =
 		Instance.new("PointLight")
 
 	FuseLight.Name = "FuseLight"
+
 	FuseLight.Color =
 		Color3.fromRGB(255, 120, 20)
 
@@ -182,7 +369,7 @@ local function CreateBomb(Position, Direction)
 	FuseLight.Parent = Fuse
 
 	--==================================================
-	-- FAÍSCAS
+	-- SPARKS
 	--==================================================
 
 	local Sparks =
@@ -208,36 +395,20 @@ local function CreateBomb(Position, Direction)
 
 	Sparks.Size =
 		NumberSequence.new({
-			NumberSequenceKeypoint.new(
-				0,
-				0.18
-			),
-
-			NumberSequenceKeypoint.new(
-				1,
-				0
-			)
+			NumberSequenceKeypoint.new(0, 0.18),
+			NumberSequenceKeypoint.new(1, 0)
 		})
 
 	Sparks.Color =
 		ColorSequence.new(
-			Color3.fromRGB(
-				255,
-				245,
-				130
-			),
-
-			Color3.fromRGB(
-				255,
-				100,
-				10
-			)
+			Color3.fromRGB(255, 245, 130),
+			Color3.fromRGB(255, 100, 10)
 		)
 
 	Sparks.Parent = Fuse
 
 	--==================================================
-	-- CHAMA
+	-- FLAME
 	--==================================================
 
 	local Flame =
@@ -260,41 +431,21 @@ local function CreateBomb(Position, Direction)
 
 	Flame.Size =
 		NumberSequence.new({
-			NumberSequenceKeypoint.new(
-				0,
-				0.25
-			),
-
-			NumberSequenceKeypoint.new(
-				0.5,
-				0.18
-			),
-
-			NumberSequenceKeypoint.new(
-				1,
-				0
-			)
+			NumberSequenceKeypoint.new(0, 0.25),
+			NumberSequenceKeypoint.new(0.5, 0.18),
+			NumberSequenceKeypoint.new(1, 0)
 		})
 
 	Flame.Color =
 		ColorSequence.new(
-			Color3.fromRGB(
-				255,
-				240,
-				100
-			),
-
-			Color3.fromRGB(
-				255,
-				80,
-				10
-			)
+			Color3.fromRGB(255, 240, 100),
+			Color3.fromRGB(255, 80, 10)
 		)
 
 	Flame.Parent = Fuse
 
 	--==================================================
-	-- ROLAGEM
+	-- ROLLING
 	--==================================================
 
 	local FlatDirection =
@@ -328,7 +479,7 @@ local function CreateBomb(Position, Direction)
 	end
 
 	--==================================================
-	-- FREIO
+	-- BRAKE
 	--==================================================
 
 	task.spawn(function()
@@ -361,7 +512,7 @@ local function CreateBomb(Position, Direction)
 	end)
 
 	--==================================================
-	-- PAVIO
+	-- FUSE
 	--==================================================
 
 	task.delay(1.2, function()
@@ -372,7 +523,6 @@ local function CreateBomb(Position, Direction)
 
 		FuseLight.Brightness = 1.5
 
-		-- Queima mais devagar
 		for i = 1, 18 do
 
 			if not Bomb.Parent then
@@ -390,7 +540,6 @@ local function CreateBomb(Position, Direction)
 
 		end
 
-		-- Parte final
 		for i = 1, 6 do
 
 			if not Bomb.Parent then
@@ -413,7 +562,7 @@ local function CreateBomb(Position, Direction)
 		end
 
 		--==================================================
-		-- EXPLOSÃO VISUAL
+		-- VISUAL EXPLOSION
 		--==================================================
 
 		local ExplosionPosition =
@@ -426,7 +575,6 @@ local function CreateBomb(Position, Direction)
 		Flame.Enabled = false
 		FuseLight.Enabled = false
 
-		-- Flash
 		local Flash =
 			Instance.new("Part")
 
@@ -448,18 +596,14 @@ local function CreateBomb(Position, Direction)
 			Enum.Material.Neon
 
 		Flash.Color =
-			Color3.fromRGB(
-				255,
-				220,
-				70
-			)
+			Color3.fromRGB(255, 220, 70)
 
 		Flash.Transparency = 0.05
 
 		Flash.Parent = workspace
 
 		--==================================================
-		-- PARTÍCULAS DA EXPLOSÃO
+		-- EXPLOSION PARTICLES
 		--==================================================
 
 		local ParticlePart =
@@ -493,56 +637,27 @@ local function CreateBomb(Position, Direction)
 		ExplosionParticles.Rate = 0
 
 		ExplosionParticles.Lifetime =
-			NumberRange.new(
-				0.3,
-				0.65
-			)
+			NumberRange.new(0.3, 0.65)
 
 		ExplosionParticles.Speed =
-			NumberRange.new(
-				8,
-				22
-			)
+			NumberRange.new(8, 22)
 
 		ExplosionParticles.SpreadAngle =
-			Vector2.new(
-				360,
-				360
-			)
+			Vector2.new(360, 360)
 
 		ExplosionParticles.LightEmission = 1
 
 		ExplosionParticles.Size =
 			NumberSequence.new({
-				NumberSequenceKeypoint.new(
-					0,
-					0.45
-				),
-
-				NumberSequenceKeypoint.new(
-					0.25,
-					0.8
-				),
-
-				NumberSequenceKeypoint.new(
-					1,
-					0
-				)
+				NumberSequenceKeypoint.new(0, 0.45),
+				NumberSequenceKeypoint.new(0.25, 0.8),
+				NumberSequenceKeypoint.new(1, 0)
 			})
 
 		ExplosionParticles.Color =
 			ColorSequence.new(
-				Color3.fromRGB(
-					255,
-					245,
-					110
-				),
-
-				Color3.fromRGB(
-					255,
-					110,
-					10
-				)
+				Color3.fromRGB(255, 245, 110),
+				Color3.fromRGB(255, 110, 10)
 			)
 
 		ExplosionParticles.Parent =
@@ -550,12 +665,8 @@ local function CreateBomb(Position, Direction)
 
 		ExplosionParticles:Emit(85)
 
-		--==================================================
-		-- IMPORTANTE:
-		-- A EXPLOSÃO NÃO AFETA O PERSONAGEM.
-		-- NENHUMA Explosion física é criada.
-		-- O pulo já aconteceu no clique.
-		--==================================================
+		-- No physical explosion.
+		-- The jump already happened when the player clicked.
 
 		task.spawn(function()
 
@@ -602,7 +713,7 @@ local function CreateBomb(Position, Direction)
 end
 
 --==================================================
--- CLIQUE
+-- ACTIVATION
 --==================================================
 
 Tool.Activated:Connect(function()
@@ -622,7 +733,7 @@ Tool.Activated:Connect(function()
 	end
 
 	--==================================================
-	-- GARANTE QUE A BOMB ESTÁ EQUIPADA
+	-- MAKE SURE BOMB IS EQUIPPED
 	--==================================================
 
 	if Tool.Parent ~= Character then
@@ -630,7 +741,7 @@ Tool.Activated:Connect(function()
 	end
 
 	--==================================================
-	-- SÓ PODE ATIVAR CAINDO
+	-- ONLY ACTIVATE WHILE FALLING
 	--==================================================
 
 	local State =
@@ -643,8 +754,6 @@ Tool.Activated:Connect(function()
 		State == Enum.HumanoidStateType.Freefall
 		and VerticalVelocity < -0.1
 
-	-- Se estiver subindo, parado ou pulando:
-	-- NÃO FAZ NADA.
 	if not IsFalling then
 		return
 	end
@@ -652,7 +761,7 @@ Tool.Activated:Connect(function()
 	Cooldown = true
 
 	--==================================================
-	-- PULO IMEDIATO AO CLICAR DURANTE A QUEDA
+	-- IMMEDIATE JUMP
 	--==================================================
 
 	local CurrentVelocity =
@@ -676,8 +785,6 @@ Tool.Activated:Connect(function()
 
 	end
 
-	-- Mantém movimento horizontal
-	-- e troca somente o Y pelo pulo.
 	Root.AssemblyLinearVelocity =
 		Vector3.new(
 			CurrentVelocity.X,
@@ -686,13 +793,13 @@ Tool.Activated:Connect(function()
 		)
 
 	--==================================================
-	-- BOMBA SAI DA MÃO
+	-- HIDE HANDLE
 	--==================================================
 
 	Handle.Transparency = 1
 
 	--==================================================
-	-- POSIÇÃO: DIRETAMENTE NOS PÉS
+	-- BOMB POSITION
 	--==================================================
 
 	local FeetPosition =
@@ -703,15 +810,11 @@ Tool.Activated:Connect(function()
 		FeetPosition +
 		Vector3.new(0, 0.45, 0)
 
-	--==================================================
-	-- DIREÇÃO
-	--==================================================
-
 	local Direction =
 		Root.CFrame.LookVector
 
 	--==================================================
-	-- CRIA BOMBA
+	-- CREATE BOMB
 	--==================================================
 
 	CreateBomb(
@@ -720,10 +823,10 @@ Tool.Activated:Connect(function()
 	)
 
 	--==================================================
-	-- DEVOLVE HANDLE
+	-- CUSTOMIZABLE COOLDOWN
 	--==================================================
 
-	task.delay(2.8, function()
+	task.delay(Config.Cooldown, function()
 
 		if Handle and Handle.Parent then
 			Handle.Transparency = 0
@@ -731,7 +834,7 @@ Tool.Activated:Connect(function()
 
 	end)
 
-	task.delay(3, function()
+	task.delay(Config.Cooldown, function()
 		Cooldown = false
 	end)
 
