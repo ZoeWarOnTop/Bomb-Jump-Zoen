@@ -1,0 +1,738 @@
+--// .ZOEWAR - BOMB JUMP
+--// Só ativa quando estiver FALLING/CAINDO
+--// Precisa estar com a Bomb equipada
+--// Clique durante a queda = pulo imediato
+--// A explosão NÃO aplica nenhuma força no personagem
+--// A bomba aparece nos pés, cai, rola, freia e queima o pavio
+
+local Players = game:GetService("Players")
+local Debris = game:GetService("Debris")
+
+local Player = Players.LocalPlayer
+local Backpack = Player:WaitForChild("Backpack")
+
+local Character
+local Humanoid
+local Root
+
+local Cooldown = false
+
+--==================================================
+-- CHARACTER
+--==================================================
+
+local function SetupCharacter(Char)
+	Character = Char
+	Humanoid = Char:WaitForChild("Humanoid")
+	Root = Char:WaitForChild("HumanoidRootPart")
+	Cooldown = false
+end
+
+SetupCharacter(Player.Character or Player.CharacterAdded:Wait())
+
+Player.CharacterAdded:Connect(function(Char)
+	SetupCharacter(Char)
+end)
+
+--==================================================
+-- TOOL
+--==================================================
+
+local Old = Backpack:FindFirstChild("Bomb")
+
+if Old then
+	Old:Destroy()
+end
+
+local Tool = Instance.new("Tool")
+
+Tool.Name = "Bomb"
+Tool.ToolTip = "Bomb Jump"
+Tool.RequiresHandle = true
+Tool.CanBeDropped = false
+Tool.ManualActivationOnly = false
+
+Tool.Parent = Backpack
+
+--==================================================
+-- HANDLE
+--==================================================
+
+local Handle = Instance.new("Part")
+
+Handle.Name = "Handle"
+Handle.Shape = Enum.PartType.Ball
+Handle.Size = Vector3.new(0.65, 0.65, 0.65)
+
+Handle.Color = Color3.fromRGB(10, 10, 10)
+Handle.Material = Enum.Material.SmoothPlastic
+
+Handle.CanCollide = false
+Handle.CanTouch = false
+Handle.CanQuery = false
+Handle.Massless = true
+
+Handle.Parent = Tool
+
+--==================================================
+-- CRIAR BOMBA
+--==================================================
+
+local function CreateBomb(Position, Direction)
+
+	local Bomb = Instance.new("Part")
+
+	Bomb.Name = "Bomb"
+	Bomb.Shape = Enum.PartType.Ball
+	Bomb.Size = Vector3.new(0.78, 0.78, 0.78)
+
+	Bomb.Position = Position
+
+	Bomb.Anchored = false
+	Bomb.CanCollide = true
+	Bomb.CanTouch = false
+	Bomb.CanQuery = false
+
+	Bomb.Material = Enum.Material.SmoothPlastic
+	Bomb.Color = Color3.fromRGB(8, 8, 8)
+
+	Bomb.CustomPhysicalProperties = PhysicalProperties.new(
+		0.7,
+		0.78,
+		0.15,
+		1,
+		1
+	)
+
+	Bomb.Parent = workspace
+
+	--==================================================
+	-- IMPEDIR A BOMBA DE BATER NO PLAYER
+	--==================================================
+
+	if Character then
+
+		for _, Part in ipairs(Character:GetDescendants()) do
+
+			if Part:IsA("BasePart") then
+
+				local NoCollision =
+					Instance.new("NoCollisionConstraint")
+
+				NoCollision.Part0 = Bomb
+				NoCollision.Part1 = Part
+
+				NoCollision.Parent = Bomb
+
+			end
+
+		end
+
+	end
+
+	--==================================================
+	-- PAVIO MAIOR
+	--==================================================
+
+	local Fuse = Instance.new("Part")
+
+	Fuse.Name = "Fuse"
+
+	Fuse.Size = Vector3.new(
+		0.075,
+		0.48,
+		0.075
+	)
+
+	Fuse.Color = Color3.fromRGB(70, 42, 20)
+	Fuse.Material = Enum.Material.SmoothPlastic
+
+	Fuse.CanCollide = false
+	Fuse.CanTouch = false
+	Fuse.CanQuery = false
+	Fuse.Massless = true
+
+	Fuse.CFrame =
+		Bomb.CFrame *
+		CFrame.new(0, 0.52, 0)
+
+	Fuse.Parent = Bomb
+
+	local FuseWeld =
+		Instance.new("WeldConstraint")
+
+	FuseWeld.Part0 = Bomb
+	FuseWeld.Part1 = Fuse
+	FuseWeld.Parent = Fuse
+
+	--==================================================
+	-- LUZ
+	--==================================================
+
+	local FuseLight =
+		Instance.new("PointLight")
+
+	FuseLight.Name = "FuseLight"
+	FuseLight.Color =
+		Color3.fromRGB(255, 120, 20)
+
+	FuseLight.Brightness = 0
+	FuseLight.Range = 3
+
+	FuseLight.Parent = Fuse
+
+	--==================================================
+	-- FAÍSCAS
+	--==================================================
+
+	local Sparks =
+		Instance.new("ParticleEmitter")
+
+	Sparks.Name = "FuseSparks"
+
+	Sparks.Texture =
+		"rbxasset://textures/particles/sparkles_main.dds"
+
+	Sparks.Rate = 0
+
+	Sparks.Lifetime =
+		NumberRange.new(0.08, 0.18)
+
+	Sparks.Speed =
+		NumberRange.new(1, 3)
+
+	Sparks.SpreadAngle =
+		Vector2.new(35, 35)
+
+	Sparks.LightEmission = 1
+
+	Sparks.Size =
+		NumberSequence.new({
+			NumberSequenceKeypoint.new(
+				0,
+				0.18
+			),
+
+			NumberSequenceKeypoint.new(
+				1,
+				0
+			)
+		})
+
+	Sparks.Color =
+		ColorSequence.new(
+			Color3.fromRGB(
+				255,
+				245,
+				130
+			),
+
+			Color3.fromRGB(
+				255,
+				100,
+				10
+			)
+		)
+
+	Sparks.Parent = Fuse
+
+	--==================================================
+	-- CHAMA
+	--==================================================
+
+	local Flame =
+		Instance.new("ParticleEmitter")
+
+	Flame.Name = "FuseFlame"
+
+	Flame.Texture =
+		"rbxasset://textures/particles/fire_main.dds"
+
+	Flame.Rate = 0
+
+	Flame.Lifetime =
+		NumberRange.new(0.12, 0.25)
+
+	Flame.Speed =
+		NumberRange.new(0.5, 1.5)
+
+	Flame.LightEmission = 1
+
+	Flame.Size =
+		NumberSequence.new({
+			NumberSequenceKeypoint.new(
+				0,
+				0.25
+			),
+
+			NumberSequenceKeypoint.new(
+				0.5,
+				0.18
+			),
+
+			NumberSequenceKeypoint.new(
+				1,
+				0
+			)
+		})
+
+	Flame.Color =
+		ColorSequence.new(
+			Color3.fromRGB(
+				255,
+				240,
+				100
+			),
+
+			Color3.fromRGB(
+				255,
+				80,
+				10
+			)
+		)
+
+	Flame.Parent = Fuse
+
+	--==================================================
+	-- ROLAGEM
+	--==================================================
+
+	local FlatDirection =
+		Vector3.new(
+			Direction.X,
+			0,
+			Direction.Z
+		)
+
+	if FlatDirection.Magnitude < 0.01 then
+		FlatDirection =
+			Vector3.new(0, 0, -1)
+	end
+
+	FlatDirection =
+		FlatDirection.Unit
+
+	Bomb.AssemblyLinearVelocity =
+		FlatDirection * 12 +
+		Vector3.new(0, -1, 0)
+
+	local RollAxis =
+		Vector3.new(0, 1, 0)
+			:Cross(FlatDirection)
+
+	if RollAxis.Magnitude > 0 then
+
+		Bomb.AssemblyAngularVelocity =
+			RollAxis.Unit * 18
+
+	end
+
+	--==================================================
+	-- FREIO
+	--==================================================
+
+	task.spawn(function()
+
+		task.wait(0.35)
+
+		for i = 1, 45 do
+
+			if not Bomb.Parent then
+				return
+			end
+
+			local Velocity =
+				Bomb.AssemblyLinearVelocity
+
+			Bomb.AssemblyLinearVelocity =
+				Vector3.new(
+					Velocity.X * 0.94,
+					Velocity.Y,
+					Velocity.Z * 0.94
+				)
+
+			Bomb.AssemblyAngularVelocity =
+				Bomb.AssemblyAngularVelocity * 0.94
+
+			task.wait(0.05)
+
+		end
+
+	end)
+
+	--==================================================
+	-- PAVIO
+	--==================================================
+
+	task.delay(1.2, function()
+
+		if not Bomb.Parent then
+			return
+		end
+
+		FuseLight.Brightness = 1.5
+
+		-- Queima mais devagar
+		for i = 1, 18 do
+
+			if not Bomb.Parent then
+				return
+			end
+
+			Sparks:Emit(3)
+			Flame:Emit(1)
+
+			FuseLight.Brightness =
+				1.2 +
+				math.random() * 1.5
+
+			task.wait(0.27)
+
+		end
+
+		-- Parte final
+		for i = 1, 6 do
+
+			if not Bomb.Parent then
+				return
+			end
+
+			Sparks:Emit(5)
+			Flame:Emit(2)
+
+			FuseLight.Brightness =
+				2 +
+				math.random() * 2
+
+			task.wait(0.1)
+
+		end
+
+		if not Bomb.Parent then
+			return
+		end
+
+		--==================================================
+		-- EXPLOSÃO VISUAL
+		--==================================================
+
+		local ExplosionPosition =
+			Bomb.Position
+
+		Bomb.Transparency = 1
+		Fuse.Transparency = 1
+
+		Sparks.Enabled = false
+		Flame.Enabled = false
+		FuseLight.Enabled = false
+
+		-- Flash
+		local Flash =
+			Instance.new("Part")
+
+		Flash.Name = "BombFlash"
+		Flash.Shape = Enum.PartType.Ball
+
+		Flash.Size =
+			Vector3.new(1, 1, 1)
+
+		Flash.Position =
+			ExplosionPosition
+
+		Flash.Anchored = true
+		Flash.CanCollide = false
+		Flash.CanTouch = false
+		Flash.CanQuery = false
+
+		Flash.Material =
+			Enum.Material.Neon
+
+		Flash.Color =
+			Color3.fromRGB(
+				255,
+				220,
+				70
+			)
+
+		Flash.Transparency = 0.05
+
+		Flash.Parent = workspace
+
+		--==================================================
+		-- PARTÍCULAS DA EXPLOSÃO
+		--==================================================
+
+		local ParticlePart =
+			Instance.new("Part")
+
+		ParticlePart.Name =
+			"BombExplosionParticles"
+
+		ParticlePart.Size =
+			Vector3.new(1, 1, 1)
+
+		ParticlePart.Position =
+			ExplosionPosition
+
+		ParticlePart.Anchored = true
+		ParticlePart.CanCollide = false
+		ParticlePart.CanTouch = false
+		ParticlePart.CanQuery = false
+
+		ParticlePart.Transparency = 1
+
+		ParticlePart.Parent =
+			workspace
+
+		local ExplosionParticles =
+			Instance.new("ParticleEmitter")
+
+		ExplosionParticles.Texture =
+			"rbxasset://textures/particles/sparkles_main.dds"
+
+		ExplosionParticles.Rate = 0
+
+		ExplosionParticles.Lifetime =
+			NumberRange.new(
+				0.3,
+				0.65
+			)
+
+		ExplosionParticles.Speed =
+			NumberRange.new(
+				8,
+				22
+			)
+
+		ExplosionParticles.SpreadAngle =
+			Vector2.new(
+				360,
+				360
+			)
+
+		ExplosionParticles.LightEmission = 1
+
+		ExplosionParticles.Size =
+			NumberSequence.new({
+				NumberSequenceKeypoint.new(
+					0,
+					0.45
+				),
+
+				NumberSequenceKeypoint.new(
+					0.25,
+					0.8
+				),
+
+				NumberSequenceKeypoint.new(
+					1,
+					0
+				)
+			})
+
+		ExplosionParticles.Color =
+			ColorSequence.new(
+				Color3.fromRGB(
+					255,
+					245,
+					110
+				),
+
+				Color3.fromRGB(
+					255,
+					110,
+					10
+				)
+			)
+
+		ExplosionParticles.Parent =
+			ParticlePart
+
+		ExplosionParticles:Emit(85)
+
+		--==================================================
+		-- IMPORTANTE:
+		-- A EXPLOSÃO NÃO AFETA O PERSONAGEM.
+		-- NENHUMA Explosion física é criada.
+		-- O pulo já aconteceu no clique.
+		--==================================================
+
+		task.spawn(function()
+
+			for i = 1, 12 do
+
+				if not Flash.Parent then
+					break
+				end
+
+				local Size =
+					1 + i * 0.7
+
+				Flash.Size =
+					Vector3.new(
+						Size,
+						Size,
+						Size
+					)
+
+				Flash.Transparency =
+					0.05 +
+					(i / 12) * 0.95
+
+				task.wait(0.02)
+
+			end
+
+			if Flash then
+				Flash:Destroy()
+			end
+
+		end)
+
+		Debris:AddItem(
+			ParticlePart,
+			0.8
+		)
+
+		Bomb:Destroy()
+
+	end)
+
+	return Bomb
+end
+
+--==================================================
+-- CLIQUE
+--==================================================
+
+Tool.Activated:Connect(function()
+
+	if Cooldown then
+		return
+	end
+
+	if not Character
+		or not Character.Parent
+		or not Humanoid
+		or Humanoid.Health <= 0
+		or not Root
+		or not Root.Parent then
+
+		return
+	end
+
+	--==================================================
+	-- GARANTE QUE A BOMB ESTÁ EQUIPADA
+	--==================================================
+
+	if Tool.Parent ~= Character then
+		return
+	end
+
+	--==================================================
+	-- SÓ PODE ATIVAR CAINDO
+	--==================================================
+
+	local State =
+		Humanoid:GetState()
+
+	local VerticalVelocity =
+		Root.AssemblyLinearVelocity.Y
+
+	local IsFalling =
+		State == Enum.HumanoidStateType.Freefall
+		and VerticalVelocity < -0.1
+
+	-- Se estiver subindo, parado ou pulando:
+	-- NÃO FAZ NADA.
+	if not IsFalling then
+		return
+	end
+
+	Cooldown = true
+
+	--==================================================
+	-- PULO IMEDIATO AO CLICAR DURANTE A QUEDA
+	--==================================================
+
+	local CurrentVelocity =
+		Root.AssemblyLinearVelocity
+
+	local JumpVelocity
+
+	if Humanoid.UseJumpPower then
+
+		JumpVelocity =
+			Humanoid.JumpPower
+
+	else
+
+		JumpVelocity =
+			math.sqrt(
+				2 *
+				workspace.Gravity *
+				Humanoid.JumpHeight
+			)
+
+	end
+
+	-- Mantém movimento horizontal
+	-- e troca somente o Y pelo pulo.
+	Root.AssemblyLinearVelocity =
+		Vector3.new(
+			CurrentVelocity.X,
+			JumpVelocity,
+			CurrentVelocity.Z
+		)
+
+	--==================================================
+	-- BOMBA SAI DA MÃO
+	--==================================================
+
+	Handle.Transparency = 1
+
+	--==================================================
+	-- POSIÇÃO: DIRETAMENTE NOS PÉS
+	--==================================================
+
+	local FeetPosition =
+		Root.Position -
+		Vector3.new(0, 2.6, 0)
+
+	local BombPosition =
+		FeetPosition +
+		Vector3.new(0, 0.45, 0)
+
+	--==================================================
+	-- DIREÇÃO
+	--==================================================
+
+	local Direction =
+		Root.CFrame.LookVector
+
+	--==================================================
+	-- CRIA BOMBA
+	--==================================================
+
+	CreateBomb(
+		BombPosition,
+		Direction
+	)
+
+	--==================================================
+	-- DEVOLVE HANDLE
+	--==================================================
+
+	task.delay(2.8, function()
+
+		if Handle and Handle.Parent then
+			Handle.Transparency = 0
+		end
+
+	end)
+
+	task.delay(3, function()
+		Cooldown = false
+	end)
+
+end)
