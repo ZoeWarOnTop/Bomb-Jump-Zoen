@@ -290,18 +290,23 @@ Handle.Massless = true
 Handle.Parent = Tool
 
 --==================================================
--- CREATE BOMB
+-- CREATE ORIGINAL-STYLE FAKE C4 BOMB
 --==================================================
 
 local function CreateBomb(Position)
 
+	local Model = Instance.new("Model")
+	Model.Name = "FakeC4Bomb"
+
+	--==================================================
+	-- MAIN BLACK C4 BODY
+	--==================================================
+
 	local Bomb = Instance.new("Part")
 
 	Bomb.Name = "Bomb"
-	Bomb.Shape = Enum.PartType.Ball
-	Bomb.Size = Vector3.new(0.78, 0.78, 0.78)
-
-	Bomb.Position = Position
+	Bomb.Size = Vector3.new(1.45, 0.42, 0.9)
+	Bomb.CFrame = CFrame.new(Position)
 
 	Bomb.Anchored = false
 	Bomb.CanCollide = true
@@ -309,7 +314,7 @@ local function CreateBomb(Position)
 	Bomb.CanQuery = false
 
 	Bomb.Material = Enum.Material.SmoothPlastic
-	Bomb.Color = Color3.fromRGB(8, 8, 8)
+	Bomb.Color = Color3.fromRGB(12, 12, 12)
 
 	Bomb.CustomPhysicalProperties = PhysicalProperties.new(
 		0.7,
@@ -319,7 +324,105 @@ local function CreateBomb(Position)
 		1
 	)
 
-	Bomb.Parent = workspace
+	Bomb.Parent = Model
+
+	--==================================================
+	-- TOP BLACK PANEL
+	--==================================================
+
+	local Top = Instance.new("Part")
+
+	Top.Name = "TopPanel"
+	Top.Size = Vector3.new(1.22, 0.12, 0.68)
+	Top.CFrame = Bomb.CFrame * CFrame.new(0, 0.265, 0)
+
+	Top.Anchored = false
+	Top.CanCollide = false
+	Top.CanTouch = false
+	Top.CanQuery = false
+
+	Top.Material = Enum.Material.SmoothPlastic
+	Top.Color = Color3.fromRGB(5, 5, 5)
+
+	Top.Parent = Model
+
+	--==================================================
+	-- SIDE DETAILS
+	--==================================================
+
+	local SideLeft = Instance.new("Part")
+	SideLeft.Name = "SideLeft"
+	SideLeft.Size = Vector3.new(0.08, 0.5, 0.76)
+	SideLeft.CFrame = Bomb.CFrame * CFrame.new(-0.66, 0, 0)
+
+	SideLeft.Anchored = false
+	SideLeft.CanCollide = false
+	SideLeft.CanTouch = false
+	SideLeft.CanQuery = false
+
+	SideLeft.Material = Enum.Material.SmoothPlastic
+	SideLeft.Color = Color3.fromRGB(25, 25, 25)
+	SideLeft.Parent = Model
+
+	local SideRight = SideLeft:Clone()
+	SideRight.Name = "SideRight"
+	SideRight.CFrame = Bomb.CFrame * CFrame.new(0.66, 0, 0)
+	SideRight.Parent = Model
+
+	--==================================================
+	-- RED WHISTLE / LIGHT
+	--==================================================
+
+	local Whistle = Instance.new("Part")
+
+	Whistle.Name = "RedWhistle"
+	Whistle.Shape = Enum.PartType.Cylinder
+	Whistle.Size = Vector3.new(0.12, 0.2, 0.2)
+
+	Whistle.CFrame =
+		Bomb.CFrame *
+		CFrame.new(0, 0.33, -0.18) *
+		CFrame.Angles(0, 0, math.rad(90))
+
+	Whistle.Anchored = false
+	Whistle.CanCollide = false
+	Whistle.CanTouch = false
+	Whistle.CanQuery = false
+
+	Whistle.Material = Enum.Material.Neon
+	Whistle.Color = Color3.fromRGB(255, 0, 0)
+
+	Whistle.Parent = Model
+
+	local WhistleLight = Instance.new("PointLight")
+
+	WhistleLight.Color = Color3.fromRGB(255, 0, 0)
+	WhistleLight.Brightness = 1.5
+	WhistleLight.Range = 4
+
+	WhistleLight.Parent = Whistle
+
+	--==================================================
+	-- WELD ALL VISUAL PARTS
+	--==================================================
+
+	for _, Part in ipairs(Model:GetChildren()) do
+
+		if Part:IsA("BasePart") and Part ~= Bomb then
+
+			local Weld = Instance.new("WeldConstraint")
+
+			Weld.Part0 = Bomb
+			Weld.Part1 = Part
+
+			Weld.Parent = Part
+
+		end
+
+	end
+
+	Model.PrimaryPart = Bomb
+	Model.Parent = workspace
 
 	--==================================================
 	-- PREVENT BOMB FROM COLLIDING WITH PLAYER
@@ -346,6 +449,36 @@ local function CreateBomb(Position)
 	end
 
 	--==================================================
+	-- FAST RED WHISTLE
+	--==================================================
+
+	task.spawn(function()
+
+		local StartTime = os.clock()
+
+		while Model.Parent and os.clock() - StartTime < 1 do
+
+			if Whistle.Parent then
+				WhistleLight.Enabled = true
+				Whistle.Transparency = 0
+			end
+
+			task.wait(0.055)
+
+			if not Whistle.Parent then
+				break
+			end
+
+			WhistleLight.Enabled = false
+			Whistle.Transparency = 0.65
+
+			task.wait(0.055)
+
+		end
+
+	end)
+
+	--==================================================
 	-- EXPLOSION
 	--==================================================
 
@@ -354,7 +487,7 @@ local function CreateBomb(Position)
 
 	local function Explode()
 
-		if Exploded or not Bomb.Parent then
+		if Exploded or not Model.Parent then
 			return
 		end
 
@@ -367,7 +500,7 @@ local function CreateBomb(Position)
 
 		local ExplosionPosition = Bomb.Position
 
-		Bomb.Transparency = 1
+		Model:Destroy()
 
 		--==================================================
 		-- VISUAL FLASH
@@ -434,8 +567,6 @@ local function CreateBomb(Position)
 		ExplosionParticles.Parent = ParticlePart
 		ExplosionParticles:Emit(85)
 
-		-- No physical explosion.
-
 		task.spawn(function()
 
 			for i = 1, 12 do
@@ -467,8 +598,6 @@ local function CreateBomb(Position)
 
 		Debris:AddItem(ParticlePart, 0.8)
 
-		Bomb:Destroy()
-
 	end
 
 	--==================================================
@@ -477,7 +606,7 @@ local function CreateBomb(Position)
 
 	TouchConnection = Bomb.Touched:Connect(function(Hit)
 
-		if Exploded or not Bomb.Parent then
+		if Exploded or not Model.Parent then
 			return
 		end
 
@@ -493,7 +622,7 @@ local function CreateBomb(Position)
 
 		task.delay(1, function()
 
-			if not Bomb.Parent then
+			if not Model.Parent then
 				return
 			end
 
@@ -504,7 +633,7 @@ local function CreateBomb(Position)
 
 	end)
 
-	return Bomb
+	return Model
 end
 
 --==================================================
