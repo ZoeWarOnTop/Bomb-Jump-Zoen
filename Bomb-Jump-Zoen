@@ -1,7 +1,8 @@
---// .ZOEWAR - FAKE C4 BOMB JUMP (SLOT 2 FIXED)
---// Mesh ID: rbxassetid://104642566
---// Inventory Icon ID: rbxassetid://133283527423352
---// Sem som de apito / Sem luzes piscantes
+--// .ZOEWAR - RECREATED FAKE C4 BOMB (PROCEDURAL)
+--// Construída totalmente via partes para garantir visual idêntico sem falha de Mesh
+--// Ícone do Inventário: rbxassetid://133283527423352
+--// Posição: Sempre travado no 2º Slot
+--// Sem som de apito
 
 local Players = game:GetService("Players")
 local Debris = game:GetService("Debris")
@@ -16,7 +17,6 @@ local Humanoid
 local Root
 
 local Cooldown = false
-local BOMB_MESH_RAW = "rbxassetid://104642566"
 local BOMB_ICON_RAW = "rbxassetid://133283527423352"
 local Tool = nil
 
@@ -59,26 +59,169 @@ local function ForceSecondSlot(targetTool)
 end
 
 --==================================================
--- CRIAR PARTE COM A MESH DA FAKE C4
+-- CONSTRUÇÃO DA C4 FÍSICA (DETALHADA DA FOTO)
 --==================================================
 
-local function CreateBombPart()
-	local Part = Instance.new("Part")
-	Part.Name = "FakeC4Part"
-	Part.Size = Vector3.new(1.45, 0.42, 0.9)
-	Part.Color = Color3.fromRGB(20, 20, 20)
-	Part.Material = Enum.Material.SmoothPlastic
-	Part.TopSurface = Enum.SurfaceType.Smooth
-	Part.BottomSurface = Enum.SurfaceType.Smooth
+local function BuildC4Model()
+	local MainModel = Instance.new("Model")
+	MainModel.Name = "FakeC4Model"
 
-	local Mesh = Instance.new("SpecialMesh")
-	Mesh.Name = "C4Mesh"
-	Mesh.MeshType = Enum.MeshType.FileMesh
-	Mesh.MeshId = BOMB_MESH_RAW
-	Mesh.Scale = Vector3.new(1, 1, 1)
-	Mesh.Parent = Part
+	-- Base / Center Assembly
+	local RootPart = Instance.new("Part")
+	RootPart.Name = "Handle"
+	RootPart.Size = Vector3.new(1.3, 0.4, 1.3)
+	RootPart.Transparency = 1
+	RootPart.CanCollide = false
+	RootPart.Massless = true
+	RootPart.Parent = MainModel
+	MainModel.PrimaryPart = RootPart
 
-	return Part
+	local function Weld(p0, p1, c0)
+		local w = Instance.new("Weld")
+		w.Part0 = p0
+		w.Part1 = p1
+		w.C0 = c0 or CFrame.new()
+		w.Parent = p0
+	end
+
+	-- 4 C4 Explosive Bricks
+	local brickColor = Color3.fromRGB(115, 125, 115)
+	local brickPositions = {
+		Vector3.new(-0.35, 0, -0.35),
+		Vector3.new(0.35, 0, -0.35),
+		Vector3.new(-0.35, 0, 0.35),
+		Vector3.new(0.35, 0, 0.35)
+	}
+
+	for i, pos in ipairs(brickPositions) do
+		local Brick = Instance.new("Part")
+		Brick.Name = "C4Block_" .. i
+		Brick.Size = Vector3.new(0.65, 0.35, 0.65)
+		Brick.Color = brickColor
+		Brick.Material = Enum.Material.SmoothPlastic
+		Brick.CanCollide = false
+		Brick.Massless = true
+		Brick.Parent = MainModel
+
+		Weld(RootPart, Brick, CFrame.new(pos))
+
+		-- Text "C4 EXPLOSIVE"
+		local SurfaceGui = Instance.new("SurfaceGui")
+		SurfaceGui.Face = Enum.NormalId.Top
+		SurfaceGui.Parent = Brick
+
+		local Label = Instance.new("TextLabel")
+		Label.Size = UDim2.new(1, 0, 1, 0)
+		Label.BackgroundTransparency = 1
+		Label.Text = "C4\nEXPLOSIVE"
+		Label.TextColor3 = Color3.fromRGB(210, 210, 130)
+		Label.TextScaled = true
+		Label.Font = Enum.Font.GothamBold
+		Label.Parent = SurfaceGui
+	end
+
+	-- Central Device Body (Black Plate)
+	local Device = Instance.new("Part")
+	Device.Name = "Device"
+	Device.Size = Vector3.new(0.75, 0.42, 0.95)
+	Device.Color = Color3.fromRGB(25, 25, 25)
+	Device.Material = Enum.Material.SmoothPlastic
+	Device.CanCollide = false
+	Device.Massless = true
+	Device.Parent = MainModel
+	Weld(RootPart, Device, CFrame.new(0, 0.05, 0))
+
+	-- Tape Straps (Top & Bottom)
+	local Tape1 = Instance.new("Part")
+	Tape1.Size = Vector3.new(0.8, 0.43, 0.12)
+	Tape1.Color = Color3.fromRGB(160, 110, 60)
+	Tape1.Material = Enum.Material.SmoothPlastic
+	Tape1.CanCollide = false
+	Tape1.Massless = true
+	Tape1.Parent = MainModel
+	Weld(RootPart, Tape1, CFrame.new(0, 0.05, -0.45))
+
+	local Tape2 = Tape1:Clone()
+	Tape2.Parent = MainModel
+	Weld(RootPart, Tape2, CFrame.new(0, 0.05, 0.45))
+
+	-- Screen / Keypad Front Assembly
+	InternalGui = Instance.new("SurfaceGui")
+	InternalGui.Face = Enum.NormalId.Top
+	InternalGui.CanvasSize = Vector2.new(200, 250)
+	InternalGui.Parent = Device
+
+	local Frame = Instance.new("Frame")
+	Frame.Size = UDim2.new(1, 0, 1, 0)
+	Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	Frame.BorderSizePixel = 0
+	Frame.Parent = InternalGui
+
+	-- Red Display Timer (00:00:00)
+	local Screen = Instance.new("Frame")
+	Screen.Size = UDim2.new(0.9, 0, 0.35, 0)
+	Screen.Position = UDim2.new(0.05, 0, 0.05, 0)
+	Screen.BackgroundColor3 = Color3.fromRGB(80, 0, 0)
+	Screen.BorderSizePixel = 2
+	Screen.BorderColor3 = Color3.fromRGB(40, 40, 40)
+	Screen.Parent = Frame
+
+	local Timer = Instance.new("TextLabel")
+	Timer.Size = UDim2.new(1, 0, 1, 0)
+	Timer.BackgroundTransparency = 1
+	Timer.Text = "00:00:00"
+	Timer.TextColor3 = Color3.fromRGB(255, 30, 30)
+	Timer.TextScaled = true
+	Timer.Font = Enum.Font.Code
+	Timer.Parent = Screen
+
+	-- White Keypad Grid
+	local Keypad = Instance.new("Frame")
+	Keypad.Size = UDim2.new(0.55, 0, 0.52, 0)
+	Keypad.Position = UDim2.new(0.05, 0, 0.43, 0)
+	Keypad.BackgroundColor3 = Color3.fromRGB(220, 220, 220)
+	Keypad.BorderSizePixel = 0
+	Keypad.Parent = Frame
+
+	local GridLayout = Instance.new("UIGridLayout")
+	GridLayout.CellSize = UDim2.new(0.3, 0, 0.22, 0)
+	GridLayout.CellPadding = UDim2.new(0.03, 0, 0.02, 0)
+	GridLayout.Parent = Keypad
+
+	for i = 1, 9 do
+		local Btn = Instance.new("TextLabel")
+		Btn.Text = tostring(i)
+		Btn.TextColor3 = Color3.fromRGB(50, 50, 50)
+		Btn.TextScaled = true
+		Btn.Font = Enum.Font.GothamBold
+		Btn.BackgroundColor3 = Color3.fromRGB(240, 240, 240)
+		Btn.BorderSizePixel = 0
+		Btn.Parent = Keypad
+	end
+
+	-- LEDs (Red, Red, Yellow, Green)
+	local ledColors = {
+		Color3.fromRGB(255, 0, 0),
+		Color3.fromRGB(255, 0, 0),
+		Color3.fromRGB(255, 200, 0),
+		Color3.fromRGB(0, 255, 0)
+	}
+
+	for i, col in ipairs(ledColors) do
+		local Led = Instance.new("Frame")
+		Led.Size = UDim2.new(0, 16, 0, 16)
+		Led.Position = UDim2.new(0.72, 0, 0.42 + (i - 1) * 0.13, 0)
+		Led.BackgroundColor3 = col
+		Led.BorderSizePixel = 1
+		Led.BorderColor3 = Color3.fromRGB(0, 0, 0)
+		Led.Parent = Frame
+
+		local Corner = Instance.new("UICorner")
+		Corner.CornerRadius = UDim.new(1, 0)
+		Corner.Parent = Led
+	end
+
+	return MainModel
 end
 
 --==================================================
@@ -86,29 +229,33 @@ end
 --==================================================
 
 local function CreateDroppedBomb(Position)
-	local Model = Instance.new("Model")
-	Model.Name = "FakeC4Bomb"
+	local C4Model = BuildC4Model()
+	local Primary = C4Model.PrimaryPart
 
-	local Bomb = CreateBombPart()
-	Bomb.CFrame = CFrame.new(Position)
-	Bomb.Anchored = false
-	Bomb.CanCollide = true
-	Bomb.CanTouch = true
-	Bomb.CanQuery = false
+	Primary.CFrame = CFrame.new(Position)
 
-	Bomb.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.78, 0.15, 1, 1)
+	for _, part in ipairs(C4Model:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.Anchored = false
+			part.CanCollide = true
+			part.CanTouch = true
+			part.CanQuery = false
+		end
+	end
 
-	Bomb.Parent = Model
-	Model.PrimaryPart = Bomb
-	Model.Parent = workspace
+	C4Model.Parent = workspace
 
 	if Character then
 		for _, Part in ipairs(Character:GetDescendants()) do
 			if Part:IsA("BasePart") then
-				local NoCollision = Instance.new("NoCollisionConstraint")
-				NoCollision.Part0 = Bomb
-				NoCollision.Part1 = Part
-				NoCollision.Parent = Bomb
+				for _, c4Part in ipairs(C4Model:GetDescendants()) do
+					if c4Part:IsA("BasePart") then
+						local NoCollision = Instance.new("NoCollisionConstraint")
+						NoCollision.Part0 = c4Part
+						NoCollision.Part1 = Part
+						NoCollision.Parent = c4Part
+					end
+				end
 			end
 		end
 	end
@@ -117,7 +264,7 @@ local function CreateDroppedBomb(Position)
 	local TouchConnection
 
 	local function Explode()
-		if Exploded or not Model.Parent then return end
+		if Exploded or not C4Model.Parent then return end
 		Exploded = true
 
 		if TouchConnection then
@@ -125,10 +272,9 @@ local function CreateDroppedBomb(Position)
 			TouchConnection = nil
 		end
 
-		local ExplosionPosition = Bomb.Position
-		Model:Destroy()
+		local ExplosionPosition = Primary.Position
+		C4Model:Destroy()
 
-		-- Flash FX
 		local Flash = Instance.new("Part")
 		Flash.Name = "BombFlash"
 		Flash.Shape = Enum.PartType.Ball
@@ -141,7 +287,6 @@ local function CreateDroppedBomb(Position)
 		Flash.Transparency = 0.05
 		Flash.Parent = workspace
 
-		-- Particle FX
 		local ParticlePart = Instance.new("Part")
 		ParticlePart.Name = "BombExplosionParticles"
 		ParticlePart.Size = Vector3.new(1, 1, 1)
@@ -187,20 +332,20 @@ local function CreateDroppedBomb(Position)
 		Debris:AddItem(ParticlePart, 0.8)
 	end
 
-	TouchConnection = Bomb.Touched:Connect(function(Hit)
-		if Exploded or not Model.Parent then return end
+	TouchConnection = Primary.Touched:Connect(function(Hit)
+		if Exploded or not C4Model.Parent then return end
 		if not Hit or not Hit:IsA("BasePart") then return end
 		if Character and Hit:IsDescendantOf(Character) then return end
 
 		Exploded = true
 		task.delay(1, function()
-			if not Model.Parent then return end
+			if not C4Model.Parent then return end
 			Exploded = false
 			Explode()
 		end)
 	end)
 
-	return Model
+	return C4Model
 end
 
 --==================================================
@@ -225,12 +370,19 @@ local function CreateTool()
 
 	NewTool.Grip = CFrame.new(0, -0.15, 0) * CFrame.Angles(0, math.rad(90), 0)
 
-	local Handle = CreateBombPart()
+	local C4Model = BuildC4Model()
+	local Handle = C4Model.PrimaryPart
+
+	for _, part in ipairs(C4Model:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.CanCollide = false
+			part.CanTouch = false
+			part.Massless = true
+			part.Parent = NewTool
+		end
+	end
+
 	Handle.Name = "Handle"
-	Handle.CanCollide = false
-	Handle.CanTouch = false
-	Handle.Massless = true
-	Handle.Parent = NewTool
 
 	NewTool.Activated:Connect(function()
 		if Cooldown then return end
@@ -264,7 +416,7 @@ local function CreateTool()
 		task.delay(Config.Cooldown, function()
 			if NewTool and NewTool.Parent then
 				for _, Object in ipairs(NewTool:GetDescendants()) do
-					if Object:IsA("BasePart") then
+					if Object:IsA("BasePart") and Object.Name ~= "Handle" then
 						Object.Transparency = 0
 					end
 				end
