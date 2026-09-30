@@ -1,18 +1,14 @@
 --// .ZOEWAR - BOMB JUMP
---// C4 preta estilo Fake C4 Bomb
---// A C4 fica visível na mão enquanto equipada
---// Ao ativar durante a queda, uma C4 é criada nos pés
---// Luz/apito vermelho rápido
---// Explode 1 segundo após tocar o chão
+--// Bloco preto retangular silencioso
+--// Handle invisível + animação de equipar bloqueada (braço parado)
+--// Ao ativar durante a queda, um bloco preto é criado nos pés
+--// Explode 1 segundo após tocar o chão (sem efeitos indicadores)
 --// Sem força física da explosão
 --// Menu de cooldown + Big Button Auto BJ
---// Ícone do inventário customizado + UI com sons e efeitos
 
 local Players = game:GetService("Players")
 local Debris = game:GetService("Debris")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local SoundService = game:GetService("SoundService")
 
 local Player = Players.LocalPlayer
 local Backpack = Player:WaitForChild("Backpack")
@@ -21,6 +17,7 @@ local PlayerGui = Player:WaitForChild("PlayerGui")
 local Character
 local Humanoid
 local Root
+local Animator
 
 local Cooldown = false
 
@@ -32,35 +29,58 @@ local Config = {
 	Cooldown = 2
 }
 
-local C4_MESH_ID = "rbxassetid://104642566"
 local C4_ICON_ID = "rbxassetid://133283527423352"
 
 --==================================================
--- UI SOUNDS
+-- TOOL HOLD ANIMATIONS (bloqueio)
 --==================================================
 
--- Som de clique (usa asset nativo do Roblox - não precisa upload)
-local CLICK_SOUND = "rbxasset://sounds/electronicpingshort.wav"
-local HOVER_SOUND = "rbxasset://sounds/button.wav"
+local ToolHoldAnims = {
+	-- R15
+	["rbxassetid://507768375"] = true,
+	["rbxassetid://507768133"] = true,
+	["rbxassetid://522635514"] = true,
+	["rbxassetid://522638767"] = true,
+	-- R6
+	["rbxassetid://182386253"] = true,
+	["rbxassetid://182386221"] = true,
+	["rbxassetid://182386188"] = true,
+	["rbxassetid://182386147"] = true,
+}
 
-local function PlayClick()
-	local S = Instance.new("Sound")
-	S.SoundId = CLICK_SOUND
-	S.Volume = 0.45
-	S.PlaybackSpeed = 1.6
-	S.Parent = SoundService
-	S:Play()
-	Debris:AddItem(S, 1)
+local ToolAnimConnection = nil
+
+local function DisconnectToolAnimBlock()
+	if ToolAnimConnection then
+		ToolAnimConnection:Disconnect()
+		ToolAnimConnection = nil
+	end
 end
 
-local function PlayHover()
-	local S = Instance.new("Sound")
-	S.SoundId = HOVER_SOUND
-	S.Volume = 0.25
-	S.PlaybackSpeed = 1.4
-	S.Parent = SoundService
-	S:Play()
-	Debris:AddItem(S, 1)
+local function StartToolAnimBlock()
+	if not Humanoid or not Humanoid.Parent then
+		return
+	end
+
+	Animator = Humanoid:FindFirstChildOfClass("Animator")
+	if not Animator then
+		return
+	end
+
+	DisconnectToolAnimBlock()
+
+	ToolAnimConnection = Animator.AnimationPlayed:Connect(function(Track)
+		local Anim = Track.Animation
+		if not Anim then
+			return
+		end
+
+		local Id = Anim.AnimationId
+
+		if ToolHoldAnims[Id] then
+			Track:Stop(0)
+		end
+	end)
 end
 
 --==================================================
@@ -77,11 +97,12 @@ end
 SetupCharacter(Player.Character or Player.CharacterAdded:Wait())
 
 Player.CharacterAdded:Connect(function(Char)
+	DisconnectToolAnimBlock()
 	SetupCharacter(Char)
 end)
 
 --==================================================
--- MENU
+-- MENU (ORIGINAL)
 --==================================================
 
 local OldGui = PlayerGui:FindFirstChild("ZoeWar_Bomb_Menu")
@@ -95,60 +116,6 @@ ScreenGui.Name = "ZoeWar_Bomb_Menu"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = PlayerGui
 
---==================================================
--- HELPER: BUTTON EFFECTS
---==================================================
-
-local function AddButtonEffects(Button, HoverColor, PressColor)
-	Button.AutoButtonColor = false
-
-	local BaseColor = Button.BackgroundColor3
-	local OriginalSize = Button.Size
-
-	Button.MouseEnter:Connect(function()
-		PlayHover()
-		TweenService:Create(Button, TweenInfo.new(0.12), {
-			BackgroundColor3 = HoverColor
-		}):Play()
-
-		TweenService:Create(Button, TweenInfo.new(0.12), {
-			Size = UDim2.new(
-				OriginalSize.X.Scale,
-				OriginalSize.X.Offset + 4,
-				OriginalSize.Y.Scale,
-				OriginalSize.Y.Offset + 4
-			)
-		}):Play()
-	end)
-
-	Button.MouseLeave:Connect(function()
-		TweenService:Create(Button, TweenInfo.new(0.12), {
-			BackgroundColor3 = BaseColor
-		}):Play()
-
-		TweenService:Create(Button, TweenInfo.new(0.12), {
-			Size = OriginalSize
-		}):Play()
-	end)
-
-	Button.MouseButton1Down:Connect(function()
-		PlayClick()
-		TweenService:Create(Button, TweenInfo.new(0.06), {
-			BackgroundColor3 = PressColor
-		}):Play()
-	end)
-
-	Button.MouseButton1Up:Connect(function()
-		TweenService:Create(Button, TweenInfo.new(0.12), {
-			BackgroundColor3 = HoverColor
-		}):Play()
-	end)
-end
-
---==================================================
--- MENU BUTTON (abre/fecha)
---==================================================
-
 local MenuButton = Instance.new("TextButton")
 MenuButton.Name = "Menu"
 MenuButton.Size = UDim2.new(0, 60, 0, 32)
@@ -158,6 +125,7 @@ MenuButton.TextColor3 = Color3.fromRGB(235, 235, 235)
 MenuButton.Text = "Menu"
 MenuButton.TextSize = 13
 MenuButton.Font = Enum.Font.GothamBold
+MenuButton.AutoButtonColor = true
 MenuButton.Active = true
 MenuButton.Draggable = true
 MenuButton.Parent = ScreenGui
@@ -171,19 +139,13 @@ ButtonStroke.Color = Color3.fromRGB(55, 55, 55)
 ButtonStroke.Thickness = 1
 ButtonStroke.Parent = MenuButton
 
-AddButtonEffects(
-	MenuButton,
-	Color3.fromRGB(25, 25, 25),
-	Color3.fromRGB(45, 45, 45)
-)
-
 --==================================================
 -- MENU FRAME
 --==================================================
 
 local MenuFrame = Instance.new("Frame")
 MenuFrame.Name = "MenuFrame"
-MenuFrame.Size = UDim2.new(0, 220, 0, 195)
+MenuFrame.Size = UDim2.new(0, 220, 0, 180)
 MenuFrame.Position = UDim2.new(0.5, -110, 0.4, 0)
 MenuFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
 MenuFrame.Visible = false
@@ -218,10 +180,6 @@ Description.TextSize = 12
 Description.Font = Enum.Font.Gotham
 Description.Parent = MenuFrame
 
---==================================================
--- INPUT
---==================================================
-
 local Input = Instance.new("TextBox")
 Input.Size = UDim2.new(0, 125, 0, 34)
 Input.Position = UDim2.new(0, 12, 0, 67)
@@ -243,23 +201,6 @@ InputStroke.Color = Color3.fromRGB(55, 55, 55)
 InputStroke.Thickness = 1
 InputStroke.Parent = Input
 
-Input.Focused:Connect(function()
-	PlayHover()
-	TweenService:Create(Input, TweenInfo.new(0.12), {
-		BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-	}):Play()
-end)
-
-Input.FocusLost:Connect(function()
-	TweenService:Create(Input, TweenInfo.new(0.12), {
-		BackgroundColor3 = Color3.fromRGB(22, 22, 22)
-	}):Play()
-end)
-
---==================================================
--- SAVE BUTTON
---==================================================
-
 local SaveButton = Instance.new("TextButton")
 SaveButton.Size = UDim2.new(0, 65, 0, 34)
 SaveButton.Position = UDim2.new(1, -77, 0, 67)
@@ -279,12 +220,6 @@ SaveStroke.Color = Color3.fromRGB(55, 55, 55)
 SaveStroke.Thickness = 1
 SaveStroke.Parent = SaveButton
 
-AddButtonEffects(
-	SaveButton,
-	Color3.fromRGB(40, 40, 40),
-	Color3.fromRGB(60, 60, 60)
-)
-
 --==================================================
 -- BIG BUTTON OPTION
 --==================================================
@@ -298,6 +233,7 @@ BigButtonOption.TextColor3 = Color3.fromRGB(235, 235, 235)
 BigButtonOption.Text = "Big Button Auto BJ"
 BigButtonOption.TextSize = 12
 BigButtonOption.Font = Enum.Font.GothamBold
+BigButtonOption.AutoButtonColor = true
 BigButtonOption.Parent = MenuFrame
 
 local BigButtonOptionCorner = Instance.new("UICorner")
@@ -309,63 +245,11 @@ BigButtonOptionStroke.Color = Color3.fromRGB(55, 55, 55)
 BigButtonOptionStroke.Thickness = 1
 BigButtonOptionStroke.Parent = BigButtonOption
 
-AddButtonEffects(
-	BigButtonOption,
-	Color3.fromRGB(35, 35, 35),
-	Color3.fromRGB(55, 55, 55)
-)
-
---==================================================
--- MENU OPEN/CLOSE COM ANIMAÇÃO
---==================================================
-
-local MenuOpen = false
-
 MenuButton.MouseButton1Click:Connect(function()
-
-	MenuOpen = not MenuOpen
-
-	if MenuOpen then
-
-		MenuFrame.Visible = true
-		MenuFrame.Size = UDim2.new(0, 0, 0, 0)
-		MenuFrame.Position = UDim2.new(0.5, 0, 0.4, 0)
-
-		TweenService:Create(
-			MenuFrame,
-			TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-			{
-				Size = UDim2.new(0, 220, 0, 195),
-				Position = UDim2.new(0.5, -110, 0.4, 0)
-			}
-		):Play()
-
-	else
-
-		local Tween = TweenService:Create(
-			MenuFrame,
-			TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-			{
-				Size = UDim2.new(0, 0, 0, 0),
-				Position = UDim2.new(0.5, 0, 0.4, 0)
-			}
-		)
-
-		Tween:Play()
-		Tween.Completed:Connect(function()
-			MenuFrame.Visible = false
-		end)
-
-	end
-
+	MenuFrame.Visible = not MenuFrame.Visible
 end)
 
---==================================================
--- SAVE
---==================================================
-
 SaveButton.MouseButton1Click:Connect(function()
-
 	local Value = tonumber(Input.Text)
 
 	if Value and Value >= 0 then
@@ -373,23 +257,7 @@ SaveButton.MouseButton1Click:Connect(function()
 		Input.Text = tostring(Value)
 	end
 
-	-- Fecha o menu com animação
-	MenuOpen = false
-
-	local Tween = TweenService:Create(
-		MenuFrame,
-		TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-		{
-			Size = UDim2.new(0, 0, 0, 0),
-			Position = UDim2.new(0.5, 0, 0.4, 0)
-		}
-	)
-
-	Tween:Play()
-	Tween.Completed:Connect(function()
-		MenuFrame.Visible = false
-	end)
-
+	MenuFrame.Visible = false
 end)
 
 --==================================================
@@ -410,25 +278,24 @@ Tool.RequiresHandle = true
 Tool.CanBeDropped = false
 Tool.ManualActivationOnly = false
 
--- Ícone do inventário customizado
+-- Ícone customizado do inventário
 Tool.TextureId = C4_ICON_ID
 
--- Ajusta a C4 para ficar deitada na mão
-Tool.Grip = CFrame.new(0, -0.15, 0)
-	* CFrame.Angles(0, math.rad(90), 0)
+-- Grip neutro (não muda posição do braço)
+Tool.Grip = CFrame.new(0, 0, 0)
 
 Tool.Parent = Backpack
 
 --==================================================
--- C4 HANDLE (com Mesh)
+-- HANDLE INVISÍVEL
 --==================================================
 
 local Handle = Instance.new("Part")
 
 Handle.Name = "Handle"
-Handle.Size = Vector3.new(1.45, 0.42, 0.9)
-
-Handle.Color = Color3.fromRGB(255, 255, 255)
+Handle.Size = Vector3.new(0.05, 0.05, 0.05)
+Handle.Transparency = 1
+Handle.Color = Color3.fromRGB(0, 0, 0)
 Handle.Material = Enum.Material.SmoothPlastic
 
 Handle.CanCollide = false
@@ -438,107 +305,20 @@ Handle.Massless = true
 
 Handle.Parent = Tool
 
-local HandleMesh = Instance.new("SpecialMesh")
-HandleMesh.MeshType = Enum.MeshType.FileMesh
-HandleMesh.MeshId = C4_MESH_ID
-HandleMesh.Scale = Vector3.new(1, 1, 1)
-HandleMesh.Parent = Handle
-
 --==================================================
--- ADD EFFECTS (Whistle/Light/Beep)
+-- BLOQUEIO DA ANIMAÇÃO AO EQUIPAR
 --==================================================
 
-local function AddC4Effects(Parent, MainPart)
+Tool.Equipped:Connect(function()
+	StartToolAnimBlock()
+end)
 
-	local Whistle = Instance.new("Part")
-
-	Whistle.Name = "RedWhistle"
-	Whistle.Shape = Enum.PartType.Ball
-	Whistle.Size = Vector3.new(0.13, 0.13, 0.13)
-
-	Whistle.CFrame =
-		MainPart.CFrame *
-		CFrame.new(0.42, 0.30, -0.18)
-
-	Whistle.Color = Color3.fromRGB(255, 0, 0)
-	Whistle.Material = Enum.Material.Neon
-
-	Whistle.CanCollide = false
-	Whistle.CanTouch = false
-	Whistle.CanQuery = false
-	Whistle.Massless = true
-	Whistle.Parent = Parent
-
-	local WeldWhistle = Instance.new("WeldConstraint")
-	WeldWhistle.Part0 = MainPart
-	WeldWhistle.Part1 = Whistle
-	WeldWhistle.Parent = Whistle
-
-	local Light = Instance.new("PointLight")
-
-	Light.Name = "RedLight"
-	Light.Color = Color3.fromRGB(255, 0, 0)
-	Light.Brightness = 2
-	Light.Range = 4
-	Light.Enabled = false
-	Light.Parent = Whistle
-
-	local Beep = Instance.new("Sound")
-
-	Beep.Name = "FastWhistle"
-	Beep.SoundId = "rbxasset://sounds/electronicpingshort.wav"
-	Beep.Volume = 0.8
-	Beep.PlaybackSpeed = 1.35
-	Beep.RollOffMaxDistance = 35
-	Beep.RollOffMinDistance = 5
-	Beep.Parent = Whistle
-
-	return Whistle, Light, Beep
-end
-
-local HandleWhistle, HandleLight, HandleBeep =
-	AddC4Effects(Tool, Handle)
-
---==================================================
--- FAST RED BEEP WHILE HOLDING
---==================================================
-
-task.spawn(function()
-
-	while Tool.Parent do
-
-		if HandleWhistle
-			and HandleWhistle.Parent
-			and Tool.Parent == Character then
-
-			HandleLight.Enabled = true
-			HandleWhistle.Transparency = 0
-
-			if HandleBeep then
-				HandleBeep:Play()
-			end
-
-			task.wait(0.12)
-
-			if HandleWhistle.Parent then
-				HandleLight.Enabled = false
-				HandleWhistle.Transparency = 0.65
-			end
-
-			task.wait(0.12)
-
-		else
-
-			task.wait(0.15)
-
-		end
-
-	end
-
+Tool.Unequipped:Connect(function()
+	DisconnectToolAnimBlock()
 end)
 
 --==================================================
--- CREATE DROPPED C4
+-- CREATE DROPPED BOMB (bloco preto silencioso)
 --==================================================
 
 local function CreateBomb(Position)
@@ -549,7 +329,7 @@ local function CreateBomb(Position)
 	local Bomb = Instance.new("Part")
 
 	Bomb.Name = "Bomb"
-	Bomb.Size = Vector3.new(1.45, 0.42, 0.9)
+	Bomb.Size = Vector3.new(1.2, 0.4, 0.8)
 	Bomb.CFrame = CFrame.new(Position)
 
 	Bomb.Anchored = false
@@ -558,7 +338,7 @@ local function CreateBomb(Position)
 	Bomb.CanQuery = false
 
 	Bomb.Material = Enum.Material.SmoothPlastic
-	Bomb.Color = Color3.fromRGB(255, 255, 255)
+	Bomb.Color = Color3.fromRGB(0, 0, 0)
 
 	Bomb.CustomPhysicalProperties = PhysicalProperties.new(
 		0.7,
@@ -568,16 +348,7 @@ local function CreateBomb(Position)
 		1
 	)
 
-	local BombMesh = Instance.new("SpecialMesh")
-	BombMesh.MeshType = Enum.MeshType.FileMesh
-	BombMesh.MeshId = C4_MESH_ID
-	BombMesh.Scale = Vector3.new(1, 1, 1)
-	BombMesh.Parent = Bomb
-
 	Bomb.Parent = Model
-
-	local Whistle, Light, Beep =
-		AddC4Effects(Model, Bomb)
 
 	Model.PrimaryPart = Bomb
 	Model.Parent = workspace
@@ -606,34 +377,6 @@ local function CreateBomb(Position)
 	end
 
 	--==================================================
-	-- FAST RED WHISTLE
-	--==================================================
-
-	task.spawn(function()
-
-		while Model.Parent do
-
-			Light.Enabled = true
-			Whistle.Transparency = 0
-
-			Beep:Play()
-
-			task.wait(0.11)
-
-			if not Model.Parent then
-				break
-			end
-
-			Light.Enabled = false
-			Whistle.Transparency = 0.65
-
-			task.wait(0.11)
-
-		end
-
-	end)
-
-	--==================================================
 	-- EXPLOSION
 	--==================================================
 
@@ -642,15 +385,8 @@ local function CreateBomb(Position)
 
 	local function Explode()
 
-		if Exploded or not Model.Parent then
+		if not Model.Parent then
 			return
-		end
-
-		Exploded = true
-
-		if TouchConnection then
-			TouchConnection:Disconnect()
-			TouchConnection = nil
 		end
 
 		local ExplosionPosition = Bomb.Position
@@ -722,6 +458,15 @@ local function CreateBomb(Position)
 		ExplosionParticles.Parent = ParticlePart
 		ExplosionParticles:Emit(85)
 
+		-- Som da explosão
+		local BoomSound = Instance.new("Sound")
+
+		BoomSound.SoundId = "rbxasset://sounds/impact_explosion_03.mp3"
+		BoomSound.Volume = 1.5
+		BoomSound.RollOffMaxDistance = 80
+		BoomSound.Parent = ParticlePart
+		BoomSound:Play()
+
 		task.spawn(function()
 
 			for i = 1, 12 do
@@ -780,7 +525,6 @@ local function CreateBomb(Position)
 				return
 			end
 
-			Exploded = false
 			Explode()
 
 		end)
@@ -856,18 +600,6 @@ Tool.Activated:Connect(function()
 	)
 
 	--==================================================
-	-- HIDE C4 DA MÃO
-	--==================================================
-
-	for _, Object in ipairs(Tool:GetDescendants()) do
-
-		if Object:IsA("BasePart") then
-			Object.Transparency = 1
-		end
-
-	end
-
-	--==================================================
 	-- BOMB POSITION
 	--==================================================
 
@@ -884,22 +616,6 @@ Tool.Activated:Connect(function()
 	--==================================================
 	-- COOLDOWN
 	--==================================================
-
-	task.delay(Config.Cooldown, function()
-
-		if Tool and Tool.Parent then
-
-			for _, Object in ipairs(Tool:GetDescendants()) do
-
-				if Object:IsA("BasePart") then
-					Object.Transparency = 0
-				end
-
-			end
-
-		end
-
-	end)
 
 	task.delay(Config.Cooldown, function()
 		Cooldown = false
@@ -927,7 +643,7 @@ BigButton.Text = "💣"
 BigButton.TextSize = 52
 BigButton.Font = Enum.Font.GothamBold
 
-BigButton.AutoButtonColor = false
+BigButton.AutoButtonColor = true
 BigButton.Active = true
 BigButton.Visible = false
 BigButton.Parent = ScreenGui
@@ -964,7 +680,7 @@ LockButton.Text = "🔒"
 LockButton.TextSize = 21
 LockButton.Font = Enum.Font.GothamBold
 
-LockButton.AutoButtonColor = false
+LockButton.AutoButtonColor = true
 LockButton.Active = true
 LockButton.Visible = false
 LockButton.Parent = ScreenGui
@@ -977,12 +693,6 @@ local LockStroke = Instance.new("UIStroke")
 LockStroke.Color = Color3.fromRGB(255, 255, 255)
 LockStroke.Thickness = 2
 LockStroke.Parent = LockButton
-
-AddButtonEffects(
-	LockButton,
-	Color3.fromRGB(30, 30, 30),
-	Color3.fromRGB(60, 60, 60)
-)
 
 --==================================================
 -- ENABLE
@@ -997,10 +707,8 @@ BigButtonOption.MouseButton1Click:Connect(function()
 
 	if BigButtonEnabled then
 		BigButtonOption.Text = "Big Button Auto BJ: ON"
-		BigButtonOptionStroke.Color = Color3.fromRGB(90, 200, 90)
 	else
 		BigButtonOption.Text = "Big Button Auto BJ"
-		BigButtonOptionStroke.Color = Color3.fromRGB(55, 55, 55)
 	end
 
 end)
@@ -1110,58 +818,6 @@ UserInputService.InputEnded:Connect(function(Input)
 
 	end
 
-end)
-
---==================================================
--- BIG BUTTON EFEITOS
---==================================================
-
-BigButton.MouseEnter:Connect(function()
-	PlayHover()
-	TweenService:Create(BigButton, TweenInfo.new(0.15), {
-		BackgroundColor3 = Color3.fromRGB(35, 35, 35),
-		Size = UDim2.new(0, 122, 0, 122),
-		Position = UDim2.new(
-			BigButton.Position.X.Scale,
-			BigButton.Position.X.Offset - 4,
-			BigButton.Position.Y.Scale,
-			BigButton.Position.Y.Offset - 4
-		)
-	}):Play()
-
-	TweenService:Create(BigButtonStroke, TweenInfo.new(0.15), {
-		Color = Color3.fromRGB(255, 80, 80)
-	}):Play()
-end)
-
-BigButton.MouseLeave:Connect(function()
-	TweenService:Create(BigButton, TweenInfo.new(0.15), {
-		BackgroundColor3 = Color3.fromRGB(10, 10, 10),
-		Size = UDim2.new(0, 115, 0, 115),
-		Position = UDim2.new(
-			BigButton.Position.X.Scale,
-			BigButton.Position.X.Offset + 4,
-			BigButton.Position.Y.Scale,
-			BigButton.Position.Y.Offset + 4
-		)
-	}):Play()
-
-	TweenService:Create(BigButtonStroke, TweenInfo.new(0.15), {
-		Color = Color3.fromRGB(255, 255, 255)
-	}):Play()
-end)
-
-BigButton.MouseButton1Down:Connect(function()
-	PlayClick()
-	TweenService:Create(BigButton, TweenInfo.new(0.08), {
-		BackgroundColor3 = Color3.fromRGB(70, 10, 10)
-	}):Play()
-end)
-
-BigButton.MouseButton1Up:Connect(function()
-	TweenService:Create(BigButton, TweenInfo.new(0.12), {
-		BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-	}):Play()
 end)
 
 --==================================================
