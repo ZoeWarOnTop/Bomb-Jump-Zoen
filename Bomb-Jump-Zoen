@@ -1,8 +1,8 @@
 --// .ZOEWAR - BOMB JUMP
 --// C4 preta estilo Fake C4 Bomb (Mesh ID: 104642566)
+--// Ícone do Inventário: rbxassetid://133283527423352
 --// A C4 fica visível na mão enquanto equipada
 --// Ao ativar durante a queda, uma C4 é criada nos pés
---// Luz/apito vermelho rápido
 --// Explode 1 segundo após tocar o chão
 --// Sem força física da explosão
 --// Menu de cooldown + Big Button Auto BJ
@@ -22,6 +22,7 @@ local Root
 
 local Cooldown = false
 local BOMB_ASSET_ID = 104642566
+local BOMB_ICON_ID = 133283527423352
 local Tool = nil
 
 --==================================================
@@ -60,7 +61,7 @@ local function GetBombMeshAsset()
 		result:Destroy()
 	end
 
-	-- Fallback caso o Asset precise de SpecialMesh direto
+	-- Fallback caso precise carregar o SpecialMesh direto
 	local FallbackPart = Instance.new("Part")
 	FallbackPart.Size = Vector3.new(1.45, 0.42, 0.9)
 	local SpecialMesh = Instance.new("SpecialMesh")
@@ -69,58 +70,6 @@ local function GetBombMeshAsset()
 	SpecialMesh.Parent = FallbackPart
 	
 	return FallbackPart
-end
-
---==================================================
--- ADD LIGHTS & SOUND
---==================================================
-
-local function AddC4Visual(Parent, MainPart)
-
-	local Whistle = Instance.new("Part")
-
-	Whistle.Name = "RedWhistle"
-	Whistle.Shape = Enum.PartType.Ball
-	Whistle.Size = Vector3.new(0.13, 0.13, 0.13)
-
-	Whistle.CFrame =
-		MainPart.CFrame *
-		CFrame.new(0.42, 0.30, -0.18)
-
-	Whistle.Color = Color3.fromRGB(255, 0, 0)
-	Whistle.Material = Enum.Material.Neon
-
-	Whistle.CanCollide = false
-	Whistle.CanTouch = false
-	Whistle.CanQuery = false
-	Whistle.Massless = true
-	Whistle.Parent = Parent
-
-	local WeldWhistle = Instance.new("WeldConstraint")
-	WeldWhistle.Part0 = MainPart
-	WeldWhistle.Part1 = Whistle
-	WeldWhistle.Parent = Whistle
-
-	local Light = Instance.new("PointLight")
-
-	Light.Name = "RedLight"
-	Light.Color = Color3.fromRGB(255, 0, 0)
-	Light.Brightness = 2
-	Light.Range = 4
-	Light.Enabled = false
-	Light.Parent = Whistle
-
-	local Beep = Instance.new("Sound")
-
-	Beep.Name = "FastWhistle"
-	Beep.SoundId = "rbxasset://sounds/electronicpingshort.wav"
-	Beep.Volume = 0.8
-	Beep.PlaybackSpeed = 1.35
-	Beep.RollOffMaxDistance = 35
-	Beep.RollOffMinDistance = 5
-	Beep.Parent = Whistle
-
-	return Whistle, Light, Beep
 end
 
 --==================================================
@@ -151,10 +100,6 @@ local function CreateBomb(Position)
 	)
 
 	Bomb.Parent = Model
-
-	local Whistle, Light, Beep =
-		AddC4Visual(Model, Bomb)
-
 	Model.PrimaryPart = Bomb
 	Model.Parent = workspace
 
@@ -180,34 +125,6 @@ local function CreateBomb(Position)
 		end
 
 	end
-
-	--==================================================
-	-- FAST RED WHISTLE
-	--==================================================
-
-	task.spawn(function()
-
-		while Model.Parent do
-
-			Light.Enabled = true
-			Whistle.Transparency = 0
-
-			Beep:Play()
-
-			task.wait(0.11)
-
-			if not Model.Parent then
-				break
-			end
-
-			Light.Enabled = false
-			Whistle.Transparency = 0.65
-
-			task.wait(0.11)
-
-		end
-
-	end)
 
 	--==================================================
 	-- EXPLOSION
@@ -385,6 +302,7 @@ local function CreateTool()
 
 	NewTool.Name = "Bomb"
 	NewTool.ToolTip = "Bomb Jump"
+	NewTool.TextureId = "rbxassetid://" .. tostring(BOMB_ICON_ID)
 	NewTool.RequiresHandle = true
 	NewTool.CanBeDropped = false
 	NewTool.ManualActivationOnly = false
@@ -401,32 +319,6 @@ local function CreateTool()
 	Handle.Massless = true
 
 	Handle.Parent = NewTool
-
-	local HandleWhistle, HandleLight, HandleBeep = AddC4Visual(NewTool, Handle)
-
-	task.spawn(function()
-		while NewTool and NewTool.Parent do
-			if HandleWhistle and HandleWhistle.Parent and NewTool.Parent == Character then
-				HandleLight.Enabled = true
-				HandleWhistle.Transparency = 0
-
-				if HandleBeep then
-					HandleBeep:Play()
-				end
-
-				task.wait(0.12)
-
-				if HandleWhistle.Parent then
-					HandleLight.Enabled = false
-					HandleWhistle.Transparency = 0.65
-				end
-
-				task.wait(0.12)
-			else
-				task.wait(0.15)
-			end
-		end
-	end)
 
 	NewTool.Activated:Connect(function()
 
