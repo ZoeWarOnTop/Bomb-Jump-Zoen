@@ -1,11 +1,9 @@
---// .ZOEWAR - BOMB JUMP (PERSISTENTE AO RESPAWN)
---// Respawna a Tool e a Interface automaticamente
---// Bomba formato Retângulo Preto sem faíscas/pavio
---// Explode 3 segundos após tocar no chão
+--// .ZOEWAR - BOMB JUMP (MENU FIX & PERSISTENTE)
 
 local Players = game:GetService("Players")
 local Debris = game:GetService("Debris")
 local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
 
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
@@ -26,341 +24,161 @@ local Config = {
 }
 
 --==================================================
--- CRIAÇÃO / RE-EQUIP DA TOOL (BOMBA)
+-- SUPORTE A EXECUTOR PARA CoreGui / PlayerGui
 --==================================================
 
-local function GiveTool()
-	local Backpack = Player:WaitForChild("Backpack")
-
-	-- Remove bomba antiga se existir
-	local OldTool = Backpack:FindFirstChild("Bomb") or (Character and Character:FindFirstChild("Bomb"))
-	if OldTool then
-		OldTool:Destroy()
+local ParentGui = PlayerGui
+pcall(function()
+	if gethui then
+		ParentGui = gethui()
+	elseif CoreGui then
+		ParentGui = CoreGui
 	end
+end)
 
-	Tool = Instance.new("Tool")
-	Tool.Name = "Bomb"
-	Tool.ToolTip = "Bomb Jump"
-	Tool.RequiresHandle = false -- Sem animação no braço
-	Tool.CanBeDropped = false
-	Tool.ManualActivationOnly = false
-	Tool.Parent = Backpack
-
-	-- CONECTA A ATIVAÇÃO NA NOVA TOOL
-	Tool.Activated:Connect(function()
-		if Cooldown then return end
-
-		if not Character
-			or not Character.Parent
-			or not Humanoid
-			or Humanoid.Health <= 0
-			or not Root
-			or not Root.Parent then
-			return
-		end
-
-		if Tool.Parent ~= Character then return end
-
-		local State = Humanoid:GetState()
-		local VerticalVelocity = Root.AssemblyLinearVelocity.Y
-		local IsFalling = State == Enum.HumanoidStateType.Freefall and VerticalVelocity < -0.1
-
-		if not IsFalling then return end
-
-		Cooldown = true
-
-		-- PULO IMEDIATO
-		local CurrentVelocity = Root.AssemblyLinearVelocity
-		local JumpVelocity
-
-		if Humanoid.UseJumpPower then
-			JumpVelocity = Humanoid.JumpPower
-		else
-			JumpVelocity = math.sqrt(2 * workspace.Gravity * Humanoid.JumpHeight)
-		end
-
-		Root.AssemblyLinearVelocity = Vector3.new(
-			CurrentVelocity.X,
-			JumpVelocity,
-			CurrentVelocity.Z
-		)
-
-		-- POSIÇÃO DA BOMBA
-		local FeetPosition = Root.Position - Vector3.new(0, 2.6, 0)
-		local BombPosition = FeetPosition + Vector3.new(0, 0.45, 0)
-
-		-- CRIA A BOMBA
-		local Bomb = Instance.new("Part")
-		Bomb.Name = "Bomb"
-		Bomb.Shape = Enum.PartType.Block
-		Bomb.Size = Vector3.new(0.8, 0.6, 1.2)
-		Bomb.Position = BombPosition
-		Bomb.Anchored = false
-		Bomb.CanCollide = true
-		Bomb.CanTouch = true
-		Bomb.CanQuery = false
-		Bomb.Material = Enum.Material.SmoothPlastic
-		Bomb.Color = Color3.fromRGB(8, 8, 8)
-		Bomb.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.78, 0.15, 1, 1)
-		Bomb.Parent = workspace
-
-		-- SEM COLISÃO COM O PLAYER
-		if Character then
-			for _, Part in ipairs(Character:GetDescendants()) do
-				if Part:IsA("BasePart") then
-					local NoCollision = Instance.new("NoCollisionConstraint")
-					NoCollision.Part0 = Bomb
-					NoCollision.Part1 = Part
-					NoCollision.Parent = Bomb
-				end
-			end
-		end
-
-		-- DETECTA TOQUE NO CHÃO E EXPLODE APÓS 3 SEGUNDOS
-		local Exploded = false
-		local TouchConnection
-		
-		TouchConnection = Bomb.Touched:Connect(function(Hit)
-			if Exploded or not Bomb.Parent then return end
-			if not Hit or not Hit:IsA("BasePart") then return end
-			if Character and Hit:IsDescendantOf(Character) then return end
-
-			Exploded = true
-
-			task.delay(3, function()
-				if not Bomb.Parent then return end
-				
-				if TouchConnection then
-					TouchConnection:Disconnect()
-				end
-
-				local ExplosionPosition = Bomb.Position
-				Bomb.Transparency = 1
-
-				-- FLASH VISUAL
-				local Flash = Instance.new("Part")
-				Flash.Name = "BombFlash"
-				Flash.Shape = Enum.PartType.Ball
-				Flash.Size = Vector3.new(1, 1, 1)
-				Flash.Position = ExplosionPosition
-				Flash.Anchored = true
-				Flash.CanCollide = false
-				Flash.CanTouch = false
-				Flash.CanQuery = false
-				Flash.Material = Enum.Material.Neon
-				Flash.Color = Color3.fromRGB(255, 220, 70)
-				Flash.Transparency = 0.05
-				Flash.Parent = workspace
-
-				-- PARTÍCULAS
-				local ParticlePart = Instance.new("Part")
-				ParticlePart.Name = "BombExplosionParticles"
-				ParticlePart.Size = Vector3.new(1, 1, 1)
-				ParticlePart.Position = ExplosionPosition
-				ParticlePart.Anchored = true
-				ParticlePart.CanCollide = false
-				ParticlePart.CanTouch = false
-				ParticlePart.CanQuery = false
-				ParticlePart.Transparency = 1
-				ParticlePart.Parent = workspace
-
-				local ExplosionParticles = Instance.new("ParticleEmitter")
-				ExplosionParticles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-				ExplosionParticles.Rate = 0
-				ExplosionParticles.Lifetime = NumberRange.new(0.3, 0.65)
-				ExplosionParticles.Speed = NumberRange.new(8, 22)
-				ExplosionParticles.SpreadAngle = Vector2.new(360, 360)
-				ExplosionParticles.LightEmission = 1
-				ExplosionParticles.Size = NumberSequence.new({
-					NumberSequenceKeypoint.new(0, 0.45),
-					NumberSequenceKeypoint.new(0.25, 0.8),
-					NumberSequenceKeypoint.new(1, 0)
-				})
-				ExplosionParticles.Color = ColorSequence.new(
-					Color3.fromRGB(255, 245, 110),
-					Color3.fromRGB(255, 110, 10)
-				)
-				ExplosionParticles.Parent = ParticlePart
-				ExplosionParticles:Emit(85)
-
-				task.spawn(function()
-					for i = 1, 12 do
-						if not Flash.Parent then break end
-						local Size = 1 + i * 0.7
-						Flash.Size = Vector3.new(Size, Size, Size)
-						Flash.Transparency = 0.05 + (i / 12) * 0.95
-						task.wait(0.02)
-					end
-					if Flash then Flash:Destroy() end
-				end)
-
-				Debris:AddItem(ParticlePart, 0.8)
-				Bomb:Destroy()
-			end)
-		end)
-
-		-- COOLDOWN
-		task.delay(Config.Cooldown, function()
-			Cooldown = false
-		end)
-	end)
-end
-
---==================================================
--- SETUP DO PERSONAGEM (RESPAWN)
---==================================================
-
-local function SetupCharacter(Char)
-	Character = Char
-	Humanoid = Char:WaitForChild("Humanoid")
-	Root = Char:WaitForChild("HumanoidRootPart")
-	Cooldown = false
-	
-	-- Dá a bomba novamente quando renascer
-	GiveTool()
-end
-
---==================================================
--- GUI PERSISTENTE ( ResetOnSpawn = false )
---==================================================
-
-local OldGui = PlayerGui:FindFirstChild("ZoeWar_Bomb_Menu")
+-- Remove UI antiga se existir
+local OldGui = ParentGui:FindFirstChild("ZoeWar_Bomb_Menu") or PlayerGui:FindFirstChild("ZoeWar_Bomb_Menu")
 if OldGui then
 	OldGui:Destroy()
 end
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ZoeWar_Bomb_Menu"
-ScreenGui.ResetOnSpawn = false -- IMPEDE A GUI DE SUMIR NO RESPAWN
-ScreenGui.Parent = PlayerGui
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- BUTTON MENU
+-- Tenta colocar no CoreGui / gethui para garantir que apareça, senão vai pro PlayerGui
+local success = pcall(function()
+	ScreenGui.Parent = ParentGui
+end)
+if not success then
+	ScreenGui.Parent = PlayerGui
+end
+
+--==================================================
+-- BOTÃO DE ABRIR O MENU (SEMPRE VISÍVEL)
+--==================================================
+
 local MenuButton = Instance.new("TextButton")
-MenuButton.Name = "Menu"
-MenuButton.Size = UDim2.new(0, 60, 0, 32)
-MenuButton.Position = UDim2.new(0, 12, 0.5, -16)
-MenuButton.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-MenuButton.TextColor3 = Color3.fromRGB(235, 235, 235)
-MenuButton.Text = "Menu"
+MenuButton.Name = "MenuButton"
+MenuButton.Size = UDim2.new(0, 80, 0, 35)
+MenuButton.Position = UDim2.new(0, 15, 0.4, 0) -- Posição na esquerda da tela
+MenuButton.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MenuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MenuButton.Text = "ZW MENU"
 MenuButton.TextSize = 13
 MenuButton.Font = Enum.Font.GothamBold
 MenuButton.AutoButtonColor = true
 MenuButton.Active = true
 MenuButton.Draggable = true
+MenuButton.ZIndex = 100
 MenuButton.Parent = ScreenGui
 
 local ButtonCorner = Instance.new("UICorner")
-ButtonCorner.CornerRadius = UDim.new(0, 9)
+ButtonCorner.CornerRadius = UDim.new(0, 8)
 ButtonCorner.Parent = MenuButton
 
 local ButtonStroke = Instance.new("UIStroke")
-ButtonStroke.Color = Color3.fromRGB(55, 55, 55)
-ButtonStroke.Thickness = 1
+ButtonStroke.Color = Color3.fromRGB(80, 80, 80)
+ButtonStroke.Thickness = 1.5
 ButtonStroke.Parent = MenuButton
 
--- MENU FRAME
+--==================================================
+-- MENU FRAME (JANELA DE CONFIGURAÇÕES)
+--==================================================
+
 local MenuFrame = Instance.new("Frame")
 MenuFrame.Name = "MenuFrame"
 MenuFrame.Size = UDim2.new(0, 220, 0, 180)
-MenuFrame.Position = UDim2.new(0.5, -110, 0.4, 0)
+MenuFrame.Position = UDim2.new(0.5, -110, 0.35, 0)
 MenuFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
 MenuFrame.Visible = false
+MenuFrame.ZIndex = 101
 MenuFrame.Parent = ScreenGui
 
 local FrameCorner = Instance.new("UICorner")
-FrameCorner.CornerRadius = UDim.new(0, 14)
+FrameCorner.CornerRadius = UDim.new(0, 12)
 FrameCorner.Parent = MenuFrame
 
 local FrameStroke = Instance.new("UIStroke")
-FrameStroke.Color = Color3.fromRGB(50, 50, 50)
-FrameStroke.Thickness = 1
+FrameStroke.Color = Color3.fromRGB(60, 60, 60)
+FrameStroke.Thickness = 1.5
 FrameStroke.Parent = MenuFrame
 
--- TITLE & DESC
+-- TEXTOS
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -20, 0, 30)
 Title.Position = UDim2.new(0, 10, 0, 8)
 Title.BackgroundTransparency = 1
 Title.Text = "Bomb Settings"
-Title.TextColor3 = Color3.fromRGB(235, 235, 235)
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 15
 Title.Font = Enum.Font.GothamBold
+Title.ZIndex = 102
 Title.Parent = MenuFrame
 
 local Description = Instance.new("TextLabel")
 Description.Size = UDim2.new(1, -20, 0, 20)
-Description.Position = UDim2.new(0, 10, 0, 36)
+Description.Position = UDim2.new(0, 10, 0, 34)
 Description.BackgroundTransparency = 1
-Description.Text = "Cooldown in seconds"
-Description.TextColor3 = Color3.fromRGB(145, 145, 145)
-Description.TextSize = 12
+Description.Text = "Cooldown em segundos"
+Description.TextColor3 = Color3.fromRGB(150, 150, 150)
+Description.TextSize = 11
 Description.Font = Enum.Font.Gotham
+Description.ZIndex = 102
 Description.Parent = MenuFrame
 
--- INPUT & SAVE
+-- INPUT COOLDOWN
 local Input = Instance.new("TextBox")
-Input.Size = UDim2.new(0, 125, 0, 34)
-Input.Position = UDim2.new(0, 12, 0, 67)
-Input.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
-Input.TextColor3 = Color3.fromRGB(235, 235, 235)
+Input.Size = UDim2.new(0, 120, 0, 32)
+Input.Position = UDim2.new(0, 12, 0, 65)
+Input.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Input.TextColor3 = Color3.fromRGB(255, 255, 255)
 Input.Text = tostring(Config.Cooldown)
-Input.PlaceholderText = "Seconds"
+Input.PlaceholderText = "Segundos"
 Input.TextSize = 13
 Input.Font = Enum.Font.Gotham
 Input.ClearTextOnFocus = false
+Input.ZIndex = 102
 Input.Parent = MenuFrame
 
 local InputCorner = Instance.new("UICorner")
-InputCorner.CornerRadius = UDim.new(0, 9)
+InputCorner.CornerRadius = UDim.new(0, 8)
 InputCorner.Parent = Input
 
-local InputStroke = Instance.new("UIStroke")
-InputStroke.Color = Color3.fromRGB(55, 55, 55)
-InputStroke.Thickness = 1
-InputStroke.Parent = Input
-
+-- SALVAR
 local SaveButton = Instance.new("TextButton")
-SaveButton.Size = UDim2.new(0, 65, 0, 34)
-SaveButton.Position = UDim2.new(1, -77, 0, 67)
-SaveButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-SaveButton.TextColor3 = Color3.fromRGB(235, 235, 235)
+SaveButton.Size = UDim2.new(0, 68, 0, 32)
+SaveButton.Position = UDim2.new(1, -80, 0, 65)
+SaveButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+SaveButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 SaveButton.Text = "Save"
 SaveButton.TextSize = 12
 SaveButton.Font = Enum.Font.GothamBold
+SaveButton.ZIndex = 102
 SaveButton.Parent = MenuFrame
 
 local SaveCorner = Instance.new("UICorner")
-SaveCorner.CornerRadius = UDim.new(0, 9)
+SaveCorner.CornerRadius = UDim.new(0, 8)
 SaveCorner.Parent = SaveButton
 
-local SaveStroke = Instance.new("UIStroke")
-SaveStroke.Color = Color3.fromRGB(55, 55, 55)
-SaveStroke.Thickness = 1
-SaveStroke.Parent = SaveButton
-
--- BIG BUTTON OPTION IN MENU
+-- BOTAO BIG BUTTON OPTION
 local BigButtonOption = Instance.new("TextButton")
-BigButtonOption.Name = "BigButtonAutoBJ"
 BigButtonOption.Size = UDim2.new(1, -24, 0, 38)
 BigButtonOption.Position = UDim2.new(0, 12, 0, 115)
-BigButtonOption.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
-BigButtonOption.TextColor3 = Color3.fromRGB(235, 235, 235)
+BigButtonOption.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+BigButtonOption.TextColor3 = Color3.fromRGB(255, 255, 255)
 BigButtonOption.Text = "Big Button Auto BJ"
 BigButtonOption.TextSize = 12
 BigButtonOption.Font = Enum.Font.GothamBold
-BigButtonOption.AutoButtonColor = true
+BigButtonOption.ZIndex = 102
 BigButtonOption.Parent = MenuFrame
 
 local BigButtonOptionCorner = Instance.new("UICorner")
-BigButtonOptionCorner.CornerRadius = UDim.new(0, 9)
+BigButtonOptionCorner.CornerRadius = UDim.new(0, 8)
 BigButtonOptionCorner.Parent = BigButtonOption
 
-local BigButtonOptionStroke = Instance.new("UIStroke")
-BigButtonOptionStroke.Color = Color3.fromRGB(55, 55, 55)
-BigButtonOptionStroke.Thickness = 1
-BigButtonOptionStroke.Parent = BigButtonOption
-
--- CONEXÕES DO MENU
+-- EVENTS MENU
 MenuButton.MouseButton1Click:Connect(function()
 	MenuFrame.Visible = not MenuFrame.Visible
 end)
@@ -383,20 +201,20 @@ local BigButtonUnlocked = false
 
 local BigButton = Instance.new("TextButton")
 BigButton.Name = "BigButtonAutoBJ"
-BigButton.Size = UDim2.new(0, 115, 0, 115)
-BigButton.Position = UDim2.new(0.5, -57, 0.65, 0)
-BigButton.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+BigButton.Size = UDim2.new(0, 110, 0, 110)
+BigButton.Position = UDim2.new(0.5, -55, 0.65, 0)
+BigButton.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
 BigButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 BigButton.Text = "💣"
-BigButton.TextSize = 52
+BigButton.TextSize = 50
 BigButton.Font = Enum.Font.GothamBold
-BigButton.AutoButtonColor = true
 BigButton.Active = true
 BigButton.Visible = false
+BigButton.ZIndex = 90
 BigButton.Parent = ScreenGui
 
 local BigButtonCorner = Instance.new("UICorner")
-BigButtonCorner.CornerRadius = UDim.new(0, 18)
+BigButtonCorner.CornerRadius = UDim.new(0, 16)
 BigButtonCorner.Parent = BigButton
 
 local BigButtonStroke = Instance.new("UIStroke")
@@ -407,28 +225,27 @@ BigButtonStroke.Parent = BigButton
 -- LOCK BUTTON
 local LockButton = Instance.new("TextButton")
 LockButton.Name = "BigButtonLock"
-LockButton.Size = UDim2.new(0, 38, 0, 38)
-LockButton.Position = UDim2.new(0.5, 65, 0.65, 39)
-LockButton.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+LockButton.Size = UDim2.new(0, 36, 0, 36)
+LockButton.Position = UDim2.new(0.5, 62, 0.65, 37)
+LockButton.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
 LockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 LockButton.Text = "🔒"
-LockButton.TextSize = 21
+LockButton.TextSize = 20
 LockButton.Font = Enum.Font.GothamBold
-LockButton.AutoButtonColor = true
 LockButton.Active = true
 LockButton.Visible = false
+LockButton.ZIndex = 91
 LockButton.Parent = ScreenGui
 
 local LockCorner = Instance.new("UICorner")
-LockCorner.CornerRadius = UDim.new(0, 10)
+LockCorner.CornerRadius = UDim.new(0, 8)
 LockCorner.Parent = LockButton
 
 local LockStroke = Instance.new("UIStroke")
 LockStroke.Color = Color3.fromRGB(255, 255, 255)
-LockStroke.Thickness = 2
+LockStroke.Thickness = 1.5
 LockStroke.Parent = LockButton
 
--- TOGGLES
 BigButtonOption.MouseButton1Click:Connect(function()
 	BigButtonEnabled = not BigButtonEnabled
 	BigButton.Visible = BigButtonEnabled
@@ -443,48 +260,17 @@ end)
 
 LockButton.MouseButton1Click:Connect(function()
 	BigButtonUnlocked = not BigButtonUnlocked
-	if BigButtonUnlocked then
-		LockButton.Text = "🔓"
-	else
-		LockButton.Text = "🔒"
-	end
+	LockButton.Text = BigButtonUnlocked and "🔓" or "🔒"
 end)
 
--- DRAG
+-- DRAG DO BIG BUTTON
 local Dragging = false
-local DragInput
-local DragStart
-local StartPosition
+local DragInput, DragStart, StartPosition
 local WasDragged = false
-
-local function UpdateBigButton(InputObj)
-	if not BigButtonUnlocked then return end
-
-	local Delta = InputObj.Position - DragStart
-	if Delta.Magnitude > 5 then
-		WasDragged = true
-	end
-
-	BigButton.Position = UDim2.new(
-		StartPosition.X.Scale,
-		StartPosition.X.Offset + Delta.X,
-		StartPosition.Y.Scale,
-		StartPosition.Y.Offset + Delta.Y
-	)
-
-	LockButton.Position = UDim2.new(
-		BigButton.Position.X.Scale,
-		BigButton.Position.X.Offset + 130,
-		BigButton.Position.Y.Scale,
-		BigButton.Position.Y.Offset + 39
-	)
-end
 
 BigButton.InputBegan:Connect(function(InputObj)
 	if not BigButtonUnlocked then return end
-
-	if InputObj.UserInputType == Enum.UserInputType.MouseButton1
-		or InputObj.UserInputType == Enum.UserInputType.Touch then
+	if InputObj.UserInputType == Enum.UserInputType.MouseButton1 or InputObj.UserInputType == Enum.UserInputType.Touch then
 		Dragging = true
 		WasDragged = false
 		DragStart = InputObj.Position
@@ -493,16 +279,19 @@ BigButton.InputBegan:Connect(function(InputObj)
 	end
 end)
 
-BigButton.InputChanged:Connect(function(InputObj)
-	if InputObj.UserInputType == Enum.UserInputType.MouseMovement
-		or InputObj.UserInputType == Enum.UserInputType.Touch then
-		DragInput = InputObj
-	end
-end)
-
 UserInputService.InputChanged:Connect(function(InputObj)
 	if Dragging and BigButtonUnlocked and InputObj == DragInput then
-		UpdateBigButton(InputObj)
+		local Delta = InputObj.Position - DragStart
+		if Delta.Magnitude > 5 then WasDragged = true end
+
+		BigButton.Position = UDim2.new(
+			StartPosition.X.Scale, StartPosition.X.Offset + Delta.X,
+			StartPosition.Y.Scale, StartPosition.Y.Offset + Delta.Y
+		)
+		LockButton.Position = UDim2.new(
+			BigButton.Position.X.Scale, BigButton.Position.X.Offset + 120,
+			BigButton.Position.Y.Scale, BigButton.Position.Y.Offset + 37
+		)
 	end
 end)
 
@@ -513,40 +302,176 @@ UserInputService.InputEnded:Connect(function(InputObj)
 	end
 end)
 
--- ACTIVATION PELO BIG BUTTON
+--==================================================
+-- TOOL & FUNCIONALIDADE DA BOMBA
+--==================================================
+
+local function GiveTool()
+	local Backpack = Player:WaitForChild("Backpack")
+
+	local OldTool = Backpack:FindFirstChild("Bomb") or (Character and Character:FindFirstChild("Bomb"))
+	if OldTool then OldTool:Destroy() end
+
+	Tool = Instance.new("Tool")
+	Tool.Name = "Bomb"
+	Tool.ToolTip = "Bomb Jump"
+	Tool.RequiresHandle = false -- Sem animação no braço
+	Tool.CanBeDropped = false
+	Tool.ManualActivationOnly = false
+	Tool.Parent = Backpack
+
+	Tool.Activated:Connect(function()
+		if Cooldown then return end
+		if not Character or not Humanoid or Humanoid.Health <= 0 or not Root then return end
+		if Tool.Parent ~= Character then return end
+
+		local State = Humanoid:GetState()
+		local IsFalling = State == Enum.HumanoidStateType.Freefall and Root.AssemblyLinearVelocity.Y < -0.1
+
+		if not IsFalling then return end
+
+		Cooldown = true
+
+		-- PULO IMEDIATO
+		local JumpVelocity = Humanoid.UseJumpPower and Humanoid.JumpPower or math.sqrt(2 * workspace.Gravity * Humanoid.JumpHeight)
+		Root.AssemblyLinearVelocity = Vector3.new(Root.AssemblyLinearVelocity.X, JumpVelocity, Root.AssemblyLinearVelocity.Z)
+
+		-- BOMBA RETÂNGULO NOS PÉS
+		local FeetPosition = Root.Position - Vector3.new(0, 2.6, 0)
+		local BombPosition = FeetPosition + Vector3.new(0, 0.45, 0)
+
+		local Bomb = Instance.new("Part")
+		Bomb.Name = "Bomb"
+		Bomb.Shape = Enum.PartType.Block
+		Bomb.Size = Vector3.new(0.8, 0.6, 1.2)
+		Bomb.Position = BombPosition
+		Bomb.Anchored = false
+		Bomb.CanCollide = true
+		Bomb.CanTouch = true
+		Bomb.CanQuery = false
+		Bomb.Material = Enum.Material.SmoothPlastic
+		Bomb.Color = Color3.fromRGB(8, 8, 8)
+		Bomb.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.78, 0.15, 1, 1)
+		Bomb.Parent = workspace
+
+		-- NO COLLISION COM PLAYER
+		for _, Part in ipairs(Character:GetDescendants()) do
+			if Part:IsA("BasePart") then
+				local NoCollision = Instance.new("NoCollisionConstraint")
+				NoCollision.Part0 = Bomb
+				NoCollision.Part1 = Part
+				NoCollision.Parent = Bomb
+			end
+		end
+
+		-- EXPLODE APÓS 3 SEGUNDOS NO CHÃO
+		local Exploded = false
+		local TouchConnection
+		TouchConnection = Bomb.Touched:Connect(function(Hit)
+			if Exploded or not Bomb.Parent then return end
+			if not Hit or not Hit:IsA("BasePart") or (Character and Hit:IsDescendantOf(Character)) then return end
+
+			Exploded = true
+
+			task.delay(3, function()
+				if not Bomb.Parent then return end
+				if TouchConnection then TouchConnection:Disconnect() end
+
+				local ExplosionPosition = Bomb.Position
+				Bomb.Transparency = 1
+
+				-- FLASH & PARTICULAS
+				local Flash = Instance.new("Part")
+				Flash.Shape = Enum.PartType.Ball
+				Flash.Size = Vector3.new(1, 1, 1)
+				Flash.Position = ExplosionPosition
+				Flash.Anchored = true
+				Flash.CanCollide = false
+				Flash.Material = Enum.Material.Neon
+				Flash.Color = Color3.fromRGB(255, 220, 70)
+				Flash.Transparency = 0.05
+				Flash.Parent = workspace
+
+				local ParticlePart = Instance.new("Part")
+				ParticlePart.Size = Vector3.new(1, 1, 1)
+				ParticlePart.Position = ExplosionPosition
+				ParticlePart.Anchored = true
+				ParticlePart.CanCollide = false
+				ParticlePart.Transparency = 1
+				ParticlePart.Parent = workspace
+
+				local ExplosionParticles = Instance.new("ParticleEmitter")
+				ExplosionParticles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+				ExplosionParticles.Rate = 0
+				ExplosionParticles.Lifetime = NumberRange.new(0.3, 0.65)
+				ExplosionParticles.Speed = NumberRange.new(8, 22)
+				ExplosionParticles.SpreadAngle = Vector2.new(360, 360)
+				ExplosionParticles.LightEmission = 1
+				ExplosionParticles.Size = NumberSequence.new({
+					NumberSequenceKeypoint.new(0, 0.45),
+					NumberSequenceKeypoint.new(0.25, 0.8),
+					NumberSequenceKeypoint.new(1, 0)
+				})
+				ExplosionParticles.Color = ColorSequence.new(Color3.fromRGB(255, 245, 110), Color3.fromRGB(255, 110, 10))
+				ExplosionParticles.Parent = ParticlePart
+				ExplosionParticles:Emit(85)
+
+				task.spawn(function()
+					for i = 1, 12 do
+						if not Flash.Parent then break end
+						Flash.Size = Vector3.new(1 + i * 0.7, 1 + i * 0.7, 1 + i * 0.7)
+						Flash.Transparency = 0.05 + (i / 12) * 0.95
+						task.wait(0.02)
+					end
+					if Flash then Flash:Destroy() end
+				end)
+
+				Debris:AddItem(ParticlePart, 0.8)
+				Bomb:Destroy()
+			end)
+		end)
+
+		task.delay(Config.Cooldown, function()
+			Cooldown = false
+		end)
+	end)
+end
+
+-- CLIQUE NO BIG BUTTON AUTO BJ
 BigButton.MouseButton1Click:Connect(function()
 	if WasDragged then
 		WasDragged = false
 		return
 	end
 
-	if not Character
-		or not Humanoid
-		or Humanoid.Health <= 0
-		or not Tool
-		or not Tool.Parent then
-		return
+	if not Character or not Humanoid or Humanoid.Health <= 0 or not Tool then return end
+
+	if Tool.Parent ~= Character then
+		Humanoid:EquipTool(Tool)
+		task.wait()
 	end
-
-	if Tool.Parent == Character then return end
-
-	Humanoid:EquipTool(Tool)
-	task.wait()
 
 	if Tool.Parent == Character then
 		Tool:Activate()
 	end
 
 	task.wait()
-
 	if Humanoid and Humanoid.Parent then
 		Humanoid:UnequipTools()
 	end
 end)
 
 --==================================================
--- INICIALIZAÇÃO / CONEXÃO DE RESPAWN
+-- SETUP RESPAWN
 --==================================================
+
+local function SetupCharacter(Char)
+	Character = Char
+	Humanoid = Char:WaitForChild("Humanoid")
+	Root = Char:WaitForChild("HumanoidRootPart")
+	Cooldown = false
+	GiveTool()
+end
 
 if Player.Character then
 	SetupCharacter(Player.Character)
