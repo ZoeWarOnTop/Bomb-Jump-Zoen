@@ -1,8 +1,7 @@
---// .ZOEWAR - BOMB JUMP (SISTEMA DIRETO DE MESH)
---// C4 preta estilo Fake C4 Bomb (Mesh ID: 104642566)
---// Ícone do Inventário: rbxassetid://133283527423352
---// Posição: Sempre no 2º Slot
---// Sem apito / Luzes removidas
+--// .ZOEWAR - FAKE C4 BOMB JUMP (SLOT 2 FIXED)
+--// Mesh ID: rbxassetid://104642566
+--// Inventory Icon ID: rbxassetid://133283527423352
+--// Sem som de apito / Sem luzes piscantes
 
 local Players = game:GetService("Players")
 local Debris = game:GetService("Debris")
@@ -17,65 +16,42 @@ local Humanoid
 local Root
 
 local Cooldown = false
-local BOMB_MESH_ID = "rbxassetid://104642566"
-local BOMB_ICON_ID = "rbxassetid://133283527423352"
+local BOMB_MESH_RAW = "rbxassetid://104642566"
+local BOMB_ICON_RAW = "rbxassetid://133283527423352"
 local Tool = nil
-
---==================================================
--- CONFIGURATION
---==================================================
 
 local Config = {
 	Cooldown = 2
 }
 
 --==================================================
--- HELPER: CRIAR PARTE COM MESH DA C4
+-- FORÇAR FERRAMENTA NO 2º SLOT
 --==================================================
 
-local function CreateBombBasePart()
-	local Part = Instance.new("Part")
-	Part.Size = Vector3.new(1.45, 0.42, 0.9)
-	Part.Color = Color3.fromRGB(30, 30, 30) -- Garantir tom preto se a textura não carregar
-	
-	local Mesh = Instance.new("SpecialMesh")
-	Mesh.MeshType = Enum.MeshType.FileMesh
-	Mesh.MeshId = BOMB_MESH_ID
-	Mesh.TextureId = BOMB_MESH_ID
-	Mesh.Scale = Vector3.new(1, 1, 1)
-	Mesh.Parent = Part
-
-	return Part
-end
-
---==================================================
--- HELPER: ORGANIZAR NO 2º SLOT
---==================================================
-
-local function MoveToSecondSlot(targetTool)
+local function ForceSecondSlot(targetTool)
 	task.defer(function()
 		local currentBackpack = Player:FindFirstChild("Backpack")
 		if not currentBackpack or not targetTool or targetTool.Parent ~= currentBackpack then
 			return
 		end
 
-		local items = {}
+		local tools = {}
 		for _, item in ipairs(currentBackpack:GetChildren()) do
 			if item:IsA("Tool") and item ~= targetTool then
-				table.insert(items, item)
+				table.insert(tools, item)
 			end
 		end
 
-		if #items >= 1 then
+		if #tools >= 1 then
 			targetTool.Parent = nil
-			for i, item in ipairs(items) do
+			for i, item in ipairs(tools) do
 				if i == 2 then
 					targetTool.Parent = currentBackpack
 				end
 				item.Parent = nil
 				item.Parent = currentBackpack
 			end
-			if #items < 2 then
+			if #tools < 2 then
 				targetTool.Parent = currentBackpack
 			end
 		end
@@ -83,17 +59,38 @@ local function MoveToSecondSlot(targetTool)
 end
 
 --==================================================
--- CREATE DROPPED C4
+-- CRIAR PARTE COM A MESH DA FAKE C4
 --==================================================
 
-local function CreateBomb(Position)
+local function CreateBombPart()
+	local Part = Instance.new("Part")
+	Part.Name = "FakeC4Part"
+	Part.Size = Vector3.new(1.45, 0.42, 0.9)
+	Part.Color = Color3.fromRGB(20, 20, 20)
+	Part.Material = Enum.Material.SmoothPlastic
+	Part.TopSurface = Enum.SurfaceType.Smooth
+	Part.BottomSurface = Enum.SurfaceType.Smooth
+
+	local Mesh = Instance.new("SpecialMesh")
+	Mesh.Name = "C4Mesh"
+	Mesh.MeshType = Enum.MeshType.FileMesh
+	Mesh.MeshId = BOMB_MESH_RAW
+	Mesh.Scale = Vector3.new(1, 1, 1)
+	Mesh.Parent = Part
+
+	return Part
+end
+
+--==================================================
+-- DROP DA C4 NO CHÃO
+--==================================================
+
+local function CreateDroppedBomb(Position)
 	local Model = Instance.new("Model")
 	Model.Name = "FakeC4Bomb"
 
-	local Bomb = CreateBombBasePart()
-	Bomb.Name = "Bomb"
+	local Bomb = CreateBombPart()
 	Bomb.CFrame = CFrame.new(Position)
-
 	Bomb.Anchored = false
 	Bomb.CanCollide = true
 	Bomb.CanTouch = true
@@ -131,6 +128,7 @@ local function CreateBomb(Position)
 		local ExplosionPosition = Bomb.Position
 		Model:Destroy()
 
+		-- Flash FX
 		local Flash = Instance.new("Part")
 		Flash.Name = "BombFlash"
 		Flash.Shape = Enum.PartType.Ball
@@ -143,6 +141,7 @@ local function CreateBomb(Position)
 		Flash.Transparency = 0.05
 		Flash.Parent = workspace
 
+		-- Particle FX
 		local ParticlePart = Instance.new("Part")
 		ParticlePart.Name = "BombExplosionParticles"
 		ParticlePart.Size = Vector3.new(1, 1, 1)
@@ -205,7 +204,7 @@ local function CreateBomb(Position)
 end
 
 --==================================================
--- TOOL CREATION
+-- CRIAR TOOL
 --==================================================
 
 local function CreateTool()
@@ -220,13 +219,13 @@ local function CreateTool()
 	local NewTool = Instance.new("Tool")
 	NewTool.Name = "Bomb"
 	NewTool.ToolTip = "Bomb Jump"
-	NewTool.TextureId = BOMB_ICON_ID
+	NewTool.TextureId = BOMB_ICON_RAW
 	NewTool.RequiresHandle = true
 	NewTool.CanBeDropped = false
 
 	NewTool.Grip = CFrame.new(0, -0.15, 0) * CFrame.Angles(0, math.rad(90), 0)
 
-	local Handle = CreateBombBasePart()
+	local Handle = CreateBombPart()
 	Handle.Name = "Handle"
 	Handle.CanCollide = false
 	Handle.CanTouch = false
@@ -260,7 +259,7 @@ local function CreateTool()
 		local FeetPosition = Root.Position - Vector3.new(0, 2.6, 0)
 		local BombPosition = FeetPosition + Vector3.new(0, 0.45, 0)
 
-		CreateBomb(BombPosition)
+		CreateDroppedBomb(BombPosition)
 
 		task.delay(Config.Cooldown, function()
 			if NewTool and NewTool.Parent then
@@ -276,13 +275,14 @@ local function CreateTool()
 
 	NewTool.Parent = Backpack
 	Tool = NewTool
-	MoveToSecondSlot(NewTool)
+	
+	ForceSecondSlot(NewTool)
 
 	return NewTool
 end
 
 --==================================================
--- MONITORING / AUTO-GIVE / SLOT LOCK
+-- MONITORAMENTO DE INVENTÁRIO
 --==================================================
 
 task.spawn(function()
@@ -296,14 +296,14 @@ task.spawn(function()
 			if not hasInBackpack and not hasInCharacter then
 				CreateTool()
 			elseif hasInBackpack then
-				MoveToSecondSlot(hasInBackpack)
+				ForceSecondSlot(hasInBackpack)
 			end
 		end
 	end
 end)
 
 --==================================================
--- CHARACTER SETUP
+-- SETUP DO PERSONAGEM
 --==================================================
 
 local function SetupCharacter(Char)
@@ -318,7 +318,7 @@ SetupCharacter(Player.Character or Player.CharacterAdded:Wait())
 Player.CharacterAdded:Connect(SetupCharacter)
 
 --==================================================
--- MENU GUI & BIG BUTTON AUTO BJ
+-- GUI MENU & BIG BUTTON AUTO BJ
 --==================================================
 
 local OldGui = PlayerGui:FindFirstChild("ZoeWar_Bomb_Menu")
