@@ -390,11 +390,9 @@ local function GiveTool()
 		if not Character or not Humanoid or Humanoid.Health <= 0 or not Root or not Root.Parent then return end
 		if Tool.Parent ~= Character then return end
 
-		local State = Humanoid:GetState()
-		local VerticalVelocity = Root.AssemblyLinearVelocity.Y
-		local IsFalling = State == Enum.HumanoidStateType.Freefall and VerticalVelocity < -0.1
-
-		if not IsFalling then return end
+		-- REMOVIDA A LIMITAÇÃO DE FREEFALL:
+		-- agora pode ativar a bomba independentemente
+		-- de estar caindo, pulando ou no chão.
 
 		Cooldown = true
 
@@ -521,7 +519,7 @@ local function GiveTool()
 end
 
 --==================================================
--- CLIQUE NO BIG BUTTON AUTO BJ (EQUIPA E ATIVA NA HORA COM ANIMAÇÃO DE PULO)
+-- CLIQUE NO BIG BUTTON AUTO BJ
 --==================================================
 
 BigButton.MouseButton1Click:Connect(function()
@@ -535,14 +533,14 @@ BigButton.MouseButton1Click:Connect(function()
 	-- 1. Equipar a bomba
 	if Tool.Parent ~= Character then
 		Humanoid:EquipTool(Tool)
-		task.wait() -- Garante o registro do equip
+		task.wait()
 	end
 
-	-- 2. Ativar bomba e forçar estado/animação do pulo
+	-- 2. Ativar bomba
 	if Tool.Parent == Character then
 		Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
 		Tool:Activate()
-		task.wait(0.12) -- Breve pausa antes de desequipar
+		task.wait(0.12)
 	end
 
 	-- 3. Desequipar
