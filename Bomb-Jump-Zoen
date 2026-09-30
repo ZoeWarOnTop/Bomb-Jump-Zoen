@@ -1,6 +1,7 @@
 --// .ZOEWAR - BOMB JUMP
 --// C4 preta estilo Fake C4 Bomb (Mesh ID: 104642566)
 --// Ícone do Inventário: rbxassetid://133283527423352
+--// Posição: Sempre no 2º Slot
 --// A C4 fica visível na mão enquanto equipada
 --// Ao ativar durante a queda, uma C4 é criada nos pés
 --// Explode 1 segundo após tocar o chão
@@ -34,6 +35,44 @@ local Config = {
 }
 
 --==================================================
+-- HELPER: MOVER PARA O 2º SLOT
+--==================================================
+
+local function MoveToSecondSlot(targetTool)
+	task.defer(function()
+		local currentBackpack = Player:FindFirstChild("Backpack")
+		if not currentBackpack or not targetTool or targetTool.Parent ~= currentBackpack then
+			return
+		end
+
+		local items = {}
+		for _, item in ipairs(currentBackpack:GetChildren()) do
+			if item:IsA("Tool") and item ~= targetTool then
+				table.insert(items, item)
+			end
+		end
+
+		-- Se tiver pelo menos 1 outro item, coloca a bomba logo após o 1º item
+		if #items >= 1 then
+			targetTool.Parent = nil
+			
+			-- Re-insere os itens para forçar a ordem do Roblox
+			for i, item in ipairs(items) do
+				if i == 2 then
+					targetTool.Parent = currentBackpack
+				end
+				item.Parent = nil
+				item.Parent = currentBackpack
+			end
+			
+			if #items < 2 then
+				targetTool.Parent = currentBackpack
+			end
+		end
+	end)
+end
+
+--==================================================
 -- HELPER: CARREGAR MESH DA BOMBA
 --==================================================
 
@@ -61,7 +100,6 @@ local function GetBombMeshAsset()
 		result:Destroy()
 	end
 
-	-- Fallback caso precise carregar o SpecialMesh direto
 	local FallbackPart = Instance.new("Part")
 	FallbackPart.Size = Vector3.new(1.45, 0.42, 0.9)
 	local SpecialMesh = Instance.new("SpecialMesh")
@@ -396,11 +434,14 @@ local function CreateTool()
 
 	NewTool.Parent = Backpack
 	Tool = NewTool
+	
+	MoveToSecondSlot(NewTool)
+	
 	return NewTool
 end
 
 --==================================================
--- AUTO RE-GIVE / MONITORING
+-- AUTO RE-GIVE / MONITORING / SLOT 2 LOCK
 --==================================================
 
 task.spawn(function()
@@ -414,6 +455,9 @@ task.spawn(function()
 			
 			if not hasInBackpack and not hasInCharacter then
 				CreateTool()
+			elseif hasInBackpack then
+				-- Se a bomba está no inventário, garante que permaneça no 2º Slot
+				MoveToSecondSlot(hasInBackpack)
 			end
 		end
 	end
