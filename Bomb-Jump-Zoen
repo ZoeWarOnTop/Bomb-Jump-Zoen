@@ -1,4 +1,4 @@
---// .ZOEWAR - BOMB JUMP (MENU ORIGINAL + ATIVAÇÃO INSTANTÂNEA)
+--// .ZOEWAR - BOMB JUMP (MENU ORIGINAL + ANIMAÇÃO DE PULO APLICADA)
 
 local Players = game:GetService("Players")
 local Debris = game:GetService("Debris")
@@ -398,6 +398,9 @@ local function GiveTool()
 
 		Cooldown = true
 
+		-- ATIVA ESTADO E ANIMAÇÃO DE PULO
+		Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+
 		-- PULO IMEDIATO
 		local CurrentVelocity = Root.AssemblyLinearVelocity
 		local JumpVelocity = Humanoid.UseJumpPower and Humanoid.JumpPower or math.sqrt(2 * workspace.Gravity * Humanoid.JumpHeight)
@@ -518,7 +521,7 @@ local function GiveTool()
 end
 
 --==================================================
--- CLIQUE NO BIG BUTTON AUTO BJ (EQUIPA E ACTIVA NA HORA)
+-- CLIQUE NO BIG BUTTON AUTO BJ (EQUIPA E ATIVA NA HORA COM ANIMAÇÃO DE PULO)
 --==================================================
 
 BigButton.MouseButton1Click:Connect(function()
@@ -532,13 +535,14 @@ BigButton.MouseButton1Click:Connect(function()
 	-- 1. Equipar a bomba
 	if Tool.Parent ~= Character then
 		Humanoid:EquipTool(Tool)
-		task.wait() -- Espera apenas 1 frame do motor do jogo para registrar o equip
+		task.wait() -- Garante o registro do equip
 	end
 
-	-- 2. Ativar IMEDIATAMENTE ao equipar
+	-- 2. Ativar bomba e forçar estado/animação do pulo
 	if Tool.Parent == Character then
+		Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
 		Tool:Activate()
-		task.wait(0.12) -- Pequena pausa visual apenas antes de guardar a bomba
+		task.wait(0.12) -- Breve pausa antes de desequipar
 	end
 
 	-- 3. Desequipar
