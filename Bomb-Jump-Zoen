@@ -1,4 +1,4 @@
---// .ZOEWAR - BOMB JUMP (MENU ORIGINAL + VELOCIDADE DO BIG BUTTON AJUSTADA)
+--// .ZOEWAR - BOMB JUMP (MENU ORIGINAL + ATIVAÇÃO INSTANTÂNEA)
 
 local Players = game:GetService("Players")
 local Debris = game:GetService("Debris")
@@ -57,14 +57,14 @@ end
 --==================================================
 
 local MenuButton = Instance.new("TextButton")
-MenuButton.Name = "Menu"
+MenuButton.Name = "ZW Menu"
 MenuButton.Size = UDim2.new(0, 60, 0, 32)
 MenuButton.Position = UDim2.new(0, 12, 0.5, -16)
 
 MenuButton.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 MenuButton.TextColor3 = Color3.fromRGB(235, 235, 235)
 
-MenuButton.Text = "Menu"
+MenuButton.Text = "ZW Menu"
 MenuButton.TextSize = 13
 MenuButton.Font = Enum.Font.GothamBold
 
@@ -518,7 +518,7 @@ local function GiveTool()
 end
 
 --==================================================
--- CLIQUE NO BIG BUTTON AUTO BJ (VELOCIDADE AJUSTADA)
+-- CLIQUE NO BIG BUTTON AUTO BJ (EQUIPA E ACTIVA NA HORA)
 --==================================================
 
 BigButton.MouseButton1Click:Connect(function()
@@ -532,13 +532,13 @@ BigButton.MouseButton1Click:Connect(function()
 	-- 1. Equipar a bomba
 	if Tool.Parent ~= Character then
 		Humanoid:EquipTool(Tool)
-		task.wait(0.12) -- Pausa para dar tempo visual de equipar
+		task.wait() -- Espera apenas 1 frame do motor do jogo para registrar o equip
 	end
 
-	-- 2. Ativar (clicar)
+	-- 2. Ativar IMEDIATAMENTE ao equipar
 	if Tool.Parent == Character then
 		Tool:Activate()
-		task.wait(0.12) -- Pausa para dar tempo visual do clique/ativação
+		task.wait(0.12) -- Pequena pausa visual apenas antes de guardar a bomba
 	end
 
 	-- 3. Desequipar
