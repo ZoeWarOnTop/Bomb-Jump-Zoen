@@ -1,8 +1,4 @@
---// .ZOEWAR - BOMB JUMP (MENU ORIGINAL + BOMBA RETÂNGULO)
---// Somente ativa enquanto estiver FALLING/CAINDO
---// Bomba formato Retângulo Preto sem faíscas/pavio
---// Explode 3 segundos após tocar no chão
---// Mantém persistência ao dar respawn
+--// .ZOEWAR - BOMB JUMP (MENU ORIGINAL + VELOCIDADE DO BIG BUTTON AJUSTADA)
 
 local Players = game:GetService("Players")
 local Debris = game:GetService("Debris")
@@ -57,7 +53,7 @@ if not ScreenGui.Parent then
 end
 
 --==================================================
--- MENU BUTTON (EXATAMENTE O SEU ANTIGO)
+-- MENU BUTTON
 --==================================================
 
 local MenuButton = Instance.new("TextButton")
@@ -88,7 +84,7 @@ ButtonStroke.Thickness = 1
 ButtonStroke.Parent = MenuButton
 
 --==================================================
--- MENU FRAME (EXATAMENTE O SEU ANTIGO)
+-- MENU FRAME
 --==================================================
 
 local MenuFrame = Instance.new("Frame")
@@ -225,7 +221,7 @@ SaveButton.MouseButton1Click:Connect(function()
 end)
 
 --==================================================
--- BIG BUTTON AUTO BJ (EXATAMENTE O SEU ANTIGO)
+-- BIG BUTTON AUTO BJ
 --==================================================
 
 local BigButtonEnabled = false
@@ -372,7 +368,7 @@ UserInputService.InputEnded:Connect(function(InputObj)
 end)
 
 --==================================================
--- TOOL & BOMBA (ALTERAÇÕES SOLICITADAS)
+-- TOOL & BOMBA
 --==================================================
 
 local function GiveTool()
@@ -384,7 +380,7 @@ local function GiveTool()
 	Tool = Instance.new("Tool")
 	Tool.Name = "Bomb"
 	Tool.ToolTip = "Bomb Jump"
-	Tool.RequiresHandle = false -- Não levanta o braço / Não faz animação
+	Tool.RequiresHandle = false
 	Tool.CanBeDropped = false
 	Tool.ManualActivationOnly = false
 	Tool.Parent = Backpack
@@ -438,7 +434,7 @@ local function GiveTool()
 			end
 		end
 
-		-- TOQUE NO CHÃO -> EXPLOSÃO APÓS EXACTAMENTE 3 SEGUNDOS
+		-- TOQUE NO CHÃO -> EXPLOSÃO APÓS 3 SEGUNDOS
 		local Exploded = false
 		local TouchConnection
 
@@ -471,7 +467,7 @@ local function GiveTool()
 				Flash.Transparency = 0.05
 				Flash.Parent = workspace
 
-				-- PARTICULAS DA EXPLOSÃO (SEM FAÍSCAS NO PAVIO)
+				-- PARTICULAS DA EXPLOSÃO
 				local ParticlePart = Instance.new("Part")
 				ParticlePart.Name = "BombExplosionParticles"
 				ParticlePart.Size = Vector3.new(1, 1, 1)
@@ -521,7 +517,10 @@ local function GiveTool()
 	end)
 end
 
--- CLIQUE NO BIG BUTTON AUTO BJ
+--==================================================
+-- CLIQUE NO BIG BUTTON AUTO BJ (VELOCIDADE AJUSTADA)
+--==================================================
+
 BigButton.MouseButton1Click:Connect(function()
 	if WasDragged then
 		WasDragged = false
@@ -530,17 +529,19 @@ BigButton.MouseButton1Click:Connect(function()
 
 	if not Character or not Humanoid or Humanoid.Health <= 0 or not Tool or not Tool.Parent then return end
 
-	if Tool.Parent == Character then return end
-
-	Humanoid:EquipTool(Tool)
-	task.wait()
-
-	if Tool.Parent == Character then
-		Tool:Activate()
+	-- 1. Equipar a bomba
+	if Tool.Parent ~= Character then
+		Humanoid:EquipTool(Tool)
+		task.wait(0.12) -- Pausa para dar tempo visual de equipar
 	end
 
-	task.wait()
+	-- 2. Ativar (clicar)
+	if Tool.Parent == Character then
+		Tool:Activate()
+		task.wait(0.12) -- Pausa para dar tempo visual do clique/ativação
+	end
 
+	-- 3. Desequipar
 	if Humanoid and Humanoid.Parent then
 		Humanoid:UnequipTools()
 	end
