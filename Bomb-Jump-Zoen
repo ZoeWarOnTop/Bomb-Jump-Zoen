@@ -1,7 +1,7 @@
 --// .ZOEWAR - BOMB JUMP
---// Bloco preto retangular silencioso
+--// Bloco preto retangular silencioso (sem mesh)
 --// Handle invisível + animação de equipar bloqueada (braço parado)
---// Ao ativar durante a queda, um bloco preto é criado nos pés
+--// Ao clicar, um bloco preto é criado nos pés (sem restrição de queda)
 --// Explode 1 segundo após tocar o chão (sem efeitos indicadores)
 --// Sem força física da explosão
 --// Menu de cooldown + Big Button Auto BJ
@@ -57,6 +57,19 @@ local function DisconnectToolAnimBlock()
 	end
 end
 
+local function StopHoldTracks()
+	if not Animator then
+		return
+	end
+
+	for _, Track in ipairs(Animator:GetPlayingAnimationTracks()) do
+		local Anim = Track.Animation
+		if Anim and ToolHoldAnims[Anim.AnimationId] then
+			Track:Stop(0)
+		end
+	end
+end
+
 local function StartToolAnimBlock()
 	if not Humanoid or not Humanoid.Parent then
 		return
@@ -75,13 +88,23 @@ local function StartToolAnimBlock()
 			return
 		end
 
-		local Id = Anim.AnimationId
-
-		if ToolHoldAnims[Id] then
+		if ToolHoldAnims[Anim.AnimationId] then
 			Track:Stop(0)
 		end
 	end)
+
+	StopHoldTracks()
 end
+
+-- Loop de reforço — evita qualquer hold anim escapar
+task.spawn(function()
+	while true do
+		if Animator and Tool and Tool.Parent == Character then
+			StopHoldTracks()
+		end
+		task.wait(0.1)
+	end
+end)
 
 --==================================================
 -- CHARACTER
@@ -102,7 +125,7 @@ Player.CharacterAdded:Connect(function(Char)
 end)
 
 --==================================================
--- MENU (ORIGINAL)
+-- MENU
 --==================================================
 
 local OldGui = PlayerGui:FindFirstChild("ZoeWar_Bomb_Menu")
@@ -535,7 +558,7 @@ local function CreateBomb(Position)
 end
 
 --==================================================
--- ACTIVATION
+-- ACTIVATION (sem restrição de queda)
 --==================================================
 
 Tool.Activated:Connect(function()
@@ -557,50 +580,43 @@ Tool.Activated:Connect(function()
 		return
 	end
 
-	local State = Humanoid:GetState()
-	local VerticalVelocity = Root.AssemblyLinearVelocity.Y
-
-	local IsFalling =
-		State == Enum.HumanoidStateType.Freefall
-		and VerticalVelocity < -0.1
-
-	if not IsFalling then
-		return
-	end
-
 	Cooldown = true
 
 	--==================================================
-	-- JUMP
+	-- JUMP (só se estiver caindo)
 	--==================================================
 
 	local CurrentVelocity = Root.AssemblyLinearVelocity
 
-	local JumpVelocity
+	if CurrentVelocity.Y < -0.1 then
 
-	if Humanoid.UseJumpPower then
+		local JumpVelocity
 
-		JumpVelocity = Humanoid.JumpPower
+		if Humanoid.UseJumpPower then
 
-	else
+			JumpVelocity = Humanoid.JumpPower
 
-		JumpVelocity =
-			math.sqrt(
-				2 *
-				workspace.Gravity *
-				Humanoid.JumpHeight
-			)
+		else
+
+			JumpVelocity =
+				math.sqrt(
+					2 *
+					workspace.Gravity *
+					Humanoid.JumpHeight
+				)
+
+		end
+
+		Root.AssemblyLinearVelocity = Vector3.new(
+			CurrentVelocity.X,
+			JumpVelocity,
+			CurrentVelocity.Z
+		)
 
 	end
 
-	Root.AssemblyLinearVelocity = Vector3.new(
-		CurrentVelocity.X,
-		JumpVelocity,
-		CurrentVelocity.Z
-	)
-
 	--==================================================
-	-- BOMB POSITION
+	-- BOMB POSITION (sempre nos pés)
 	--==================================================
 
 	local FeetPosition =
