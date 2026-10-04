@@ -1,9 +1,10 @@
---// .ZOEWAR - BOMB JUMP (MENU ORIGINAL + ANIMAÇÃO DE PULO APLICADA)
+--// .ZOEWAR - BOMB JUMP & BOMB COLOR CHANGER (ZW MENU ANIMATED EDITION)
 
 local Players = game:GetService("Players")
 local Debris = game:GetService("Debris")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
 
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
@@ -16,15 +17,19 @@ local Tool
 local Cooldown = false
 
 --==================================================
--- CONFIGURATION
+-- CONFIGURAÇÕES LOCAIS & CORES
 --==================================================
 
 local Config = {
 	Cooldown = 2
 }
 
+-- HSV / Cor da Bomba
+local currentH, currentS, currentV = 0, 0, 0.1
+local bombColor = Color3.fromHSV(currentH, currentS, currentV)
+
 --==================================================
--- PARENT GUI (GARANTE EXIBIÇÃO EM EXECUTORES)
+-- PARENT GUI (SUPORTE A EXECUTORES)
 --==================================================
 
 local ParentGui = PlayerGui
@@ -53,15 +58,27 @@ if not ScreenGui.Parent then
 end
 
 --==================================================
--- MENU BUTTON
+-- FUNÇÃO AUXILIAR PARA APLICAR CONTORNO EM TEXTOS
+--==================================================
+
+local function applyTextStroke(textLabel)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(120, 120, 120) -- Contorno cinza nas letras
+	stroke.Thickness = 1
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	stroke.Parent = textLabel
+end
+
+--==================================================
+-- BOTÃO ZW MENU (BOTÃO ORIGINAL DE ABRIR/FECHAR)
 --==================================================
 
 local MenuButton = Instance.new("TextButton")
 MenuButton.Name = "ZW Menu"
-MenuButton.Size = UDim2.new(0, 60, 0, 32)
+MenuButton.Size = UDim2.new(0, 70, 0, 32)
 MenuButton.Position = UDim2.new(0, 12, 0.5, -16)
 
-MenuButton.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+MenuButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 MenuButton.TextColor3 = Color3.fromRGB(235, 235, 235)
 
 MenuButton.Text = "ZW Menu"
@@ -71,145 +88,294 @@ MenuButton.Font = Enum.Font.GothamBold
 MenuButton.AutoButtonColor = true
 MenuButton.Active = true
 MenuButton.Draggable = true
-
 MenuButton.Parent = ScreenGui
+
+applyTextStroke(MenuButton)
 
 local ButtonCorner = Instance.new("UICorner")
 ButtonCorner.CornerRadius = UDim.new(0, 9)
 ButtonCorner.Parent = MenuButton
 
 local ButtonStroke = Instance.new("UIStroke")
-ButtonStroke.Color = Color3.fromRGB(55, 55, 55)
-ButtonStroke.Thickness = 1
+ButtonStroke.Color = Color3.fromRGB(120, 120, 120) -- Contorno cinza no botão
+ButtonStroke.Thickness = 1.5
 ButtonStroke.Parent = MenuButton
 
 --==================================================
--- MENU FRAME
+-- JANELA PRINCIPAL DO MENU (TOTALMENTE PRETA)
 --==================================================
+
+local OriginalSize = UDim2.new(0, 380, 0, 230)
+local SavedPosition = UDim2.new(0.5, -190, 0.4, -115)
 
 local MenuFrame = Instance.new("Frame")
 MenuFrame.Name = "MenuFrame"
-MenuFrame.Size = UDim2.new(0, 220, 0, 180)
-MenuFrame.Position = UDim2.new(0.5, -110, 0.4, 0)
+MenuFrame.Size = OriginalSize
+MenuFrame.Position = SavedPosition
 
-MenuFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+MenuFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0) -- Fundo Totalmente Preto
 MenuFrame.Visible = false
+MenuFrame.Active = true
+MenuFrame.ClipsDescendants = true
 MenuFrame.Parent = ScreenGui
 
 local FrameCorner = Instance.new("UICorner")
-FrameCorner.CornerRadius = UDim.new(0, 14)
+FrameCorner.CornerRadius = UDim.new(0, 14) -- Bordas arredondadas
 FrameCorner.Parent = MenuFrame
 
 local FrameStroke = Instance.new("UIStroke")
-FrameStroke.Color = Color3.fromRGB(50, 50, 50)
-FrameStroke.Thickness = 1
+FrameStroke.Color = Color3.fromRGB(120, 120, 120) -- Contorno cinza na interface
+FrameStroke.Thickness = 1.5
 FrameStroke.Parent = MenuFrame
 
--- TITLE
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -20, 0, 30)
-Title.Position = UDim2.new(0, 10, 0, 8)
+-- ARRASTAR A JANELA PRINCIPAL
+local DraggingMenu = false
+local DragInputMenu, DragStartMenu, StartPosMenu
 
+MenuFrame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		DraggingMenu = true
+		DragStartMenu = input.Position
+		StartPosMenu = MenuFrame.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				DraggingMenu = false
+			end
+		end)
+	end
+end)
+
+MenuFrame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		DragInputMenu = input
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if input == DragInputMenu and DraggingMenu then
+		local delta = input.Position - DragStartMenu
+		MenuFrame.Position = UDim2.new(StartPosMenu.X.Scale, StartPosMenu.X.Offset + delta.X, StartPosMenu.Y.Scale, StartPosMenu.Y.Offset + delta.Y)
+		SavedPosition = MenuFrame.Position -- Atualiza a posição salva para onde foi arrastada
+	end
+end)
+
+-- BARRA SUPERIOR
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -20, 0, 32)
+Title.Position = UDim2.new(0, 10, 0, 4)
 Title.BackgroundTransparency = 1
 Title.Text = "Bomb Settings"
-Title.TextColor3 = Color3.fromRGB(235, 235, 235)
-
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 15
 Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = MenuFrame
 
--- DESCRIPTION
-local Description = Instance.new("TextLabel")
-Description.Size = UDim2.new(1, -20, 0, 20)
-Description.Position = UDim2.new(0, 10, 0, 36)
+applyTextStroke(Title)
 
+--==================================================
+-- SISTEMA DE ANIMAÇÃO DE MINIMIZAR / EXPANDIR (TWEEN)
+--==================================================
+
+local isAnimating = false
+local tweenInfo = TweenInfo.new(0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+
+MenuButton.MouseButton1Click:Connect(function()
+	if isAnimating then return end
+	isAnimating = true
+
+	if MenuFrame.Visible then
+		-- MINIMIZAR PARA O BOTÃO
+		SavedPosition = MenuFrame.Position -- Guarda a posição atual antes de fechar
+
+		local tweenSize = TweenService:Create(MenuFrame, tweenInfo, {
+			Size = UDim2.new(0, MenuButton.AbsoluteSize.X, 0, MenuButton.AbsoluteSize.Y),
+			Position = MenuButton.Position
+		})
+
+		tweenSize:Play()
+		tweenSize.Completed:Connect(function()
+			MenuFrame.Visible = false
+			isAnimating = false
+		end)
+	else
+		-- EXPANDIR DO BOTÃO PARA A POSIÇÃO ANTERIOR
+		MenuFrame.Size = UDim2.new(0, MenuButton.AbsoluteSize.X, 0, MenuButton.AbsoluteSize.Y)
+		MenuFrame.Position = MenuButton.Position
+		MenuFrame.Visible = true
+
+		local tweenSize = TweenService:Create(MenuFrame, tweenInfo, {
+			Size = OriginalSize,
+			Position = SavedPosition
+		})
+
+		tweenSize:Play()
+		tweenSize.Completed:Connect(function()
+			isAnimating = false
+		end)
+	end
+end)
+
+--==================================================
+-- SIDEBAR LATERAL (ABAS ESTILO VANGUARD HUB)
+--==================================================
+
+local Sidebar = Instance.new("Frame")
+Sidebar.Name = "Sidebar"
+Sidebar.Size = UDim2.new(0, 100, 1, -40)
+Sidebar.Position = UDim2.new(0, 8, 0, 36)
+Sidebar.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = MenuFrame
+
+local SidebarList = Instance.new("UIListLayout")
+SidebarList.SortOrder = Enum.SortOrder.LayoutOrder
+SidebarList.Padding = UDim.new(0, 6)
+SidebarList.Parent = Sidebar
+
+local ContentContainer = Instance.new("Frame")
+ContentContainer.Name = "ContentContainer"
+ContentContainer.Size = UDim2.new(1, -116, 1, -40)
+ContentContainer.Position = UDim2.new(0, 112, 0, 36)
+ContentContainer.BackgroundTransparency = 1
+ContentContainer.Parent = MenuFrame
+
+local Tabs = {}
+local TabButtons = {}
+
+local function CreateTab(name, layoutOrder)
+	local TabButton = Instance.new("TextButton")
+	TabButton.Name = name .. "TabBtn"
+	TabButton.Size = UDim2.new(1, 0, 0, 30)
+	TabButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	TabButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+	TabButton.Text = name
+	TabButton.TextSize = 11
+	TabButton.Font = Enum.Font.GothamBold
+	TabButton.LayoutOrder = layoutOrder
+	TabButton.Parent = Sidebar
+
+	applyTextStroke(TabButton)
+
+	local BtnCorner = Instance.new("UICorner")
+	BtnCorner.CornerRadius = UDim.new(0, 6)
+	BtnCorner.Parent = TabButton
+
+	local BtnStroke = Instance.new("UIStroke")
+	BtnStroke.Color = Color3.fromRGB(100, 100, 100)
+	BtnStroke.Thickness = 1
+	BtnStroke.Parent = TabButton
+
+	local TabPage = Instance.new("Frame")
+	TabPage.Name = name .. "Page"
+	TabPage.Size = UDim2.new(1, 0, 1, 0)
+	TabPage.BackgroundTransparency = 1
+	TabPage.Visible = false
+	TabPage.Parent = ContentContainer
+
+	Tabs[name] = TabPage
+	TabButtons[name] = TabButton
+
+	TabButton.MouseButton1Click:Connect(function()
+		for tabName, page in pairs(Tabs) do
+			page.Visible = (tabName == name)
+			TabButtons[tabName].BackgroundColor3 = (tabName == name) and Color3.fromRGB(25, 25, 25) or Color3.fromRGB(0, 0, 0)
+			TabButtons[tabName].TextColor3 = (tabName == name) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 200)
+		end
+	end)
+
+	return TabPage
+end
+
+local MainTab = CreateTab("Main", 1)
+local BombColorTab = CreateTab("Bomb Color", 2)
+
+Tabs["Main"].Visible = true
+TabButtons["Main"].BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+
+--==================================================
+-- ABA 1: MAIN / CONFIGURAÇÕES
+--==================================================
+
+local Description = Instance.new("TextLabel")
+Description.Size = UDim2.new(1, -10, 0, 20)
+Description.Position = UDim2.new(0, 0, 0, 0)
 Description.BackgroundTransparency = 1
 Description.Text = "Cooldown in seconds"
-Description.TextColor3 = Color3.fromRGB(145, 145, 145)
-
+Description.TextColor3 = Color3.fromRGB(200, 200, 200)
 Description.TextSize = 12
 Description.Font = Enum.Font.Gotham
-Description.Parent = MenuFrame
+Description.TextXAlignment = Enum.TextXAlignment.Left
+Description.Parent = MainTab
 
--- INPUT
+applyTextStroke(Description)
+
 local Input = Instance.new("TextBox")
-Input.Size = UDim2.new(0, 125, 0, 34)
-Input.Position = UDim2.new(0, 12, 0, 67)
-
-Input.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+Input.Size = UDim2.new(0, 160, 0, 32)
+Input.Position = UDim2.new(0, 0, 0, 24)
+Input.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 Input.TextColor3 = Color3.fromRGB(235, 235, 235)
-
 Input.Text = tostring(Config.Cooldown)
 Input.PlaceholderText = "Seconds"
-
 Input.TextSize = 13
 Input.Font = Enum.Font.Gotham
-
 Input.ClearTextOnFocus = false
-Input.Parent = MenuFrame
+Input.Parent = MainTab
+
+applyTextStroke(Input)
 
 local InputCorner = Instance.new("UICorner")
-InputCorner.CornerRadius = UDim.new(0, 9)
+InputCorner.CornerRadius = UDim.new(0, 8)
 InputCorner.Parent = Input
 
 local InputStroke = Instance.new("UIStroke")
-InputStroke.Color = Color3.fromRGB(55, 55, 55)
+InputStroke.Color = Color3.fromRGB(120, 120, 120)
 InputStroke.Thickness = 1
 InputStroke.Parent = Input
 
--- SAVE BUTTON
 local SaveButton = Instance.new("TextButton")
-SaveButton.Size = UDim2.new(0, 65, 0, 34)
-SaveButton.Position = UDim2.new(1, -77, 0, 67)
-
-SaveButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+SaveButton.Size = UDim2.new(0, 80, 0, 32)
+SaveButton.Position = UDim2.new(0, 170, 0, 24)
+SaveButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 SaveButton.TextColor3 = Color3.fromRGB(235, 235, 235)
-
 SaveButton.Text = "Save"
 SaveButton.TextSize = 12
 SaveButton.Font = Enum.Font.GothamBold
+SaveButton.Parent = MainTab
 
-SaveButton.Parent = MenuFrame
+applyTextStroke(SaveButton)
 
 local SaveCorner = Instance.new("UICorner")
-SaveCorner.CornerRadius = UDim.new(0, 9)
+SaveCorner.CornerRadius = UDim.new(0, 8)
 SaveCorner.Parent = SaveButton
 
 local SaveStroke = Instance.new("UIStroke")
-SaveStroke.Color = Color3.fromRGB(55, 55, 55)
+SaveStroke.Color = Color3.fromRGB(120, 120, 120)
 SaveStroke.Thickness = 1
 SaveStroke.Parent = SaveButton
 
--- BIG BUTTON OPTION
 local BigButtonOption = Instance.new("TextButton")
-
 BigButtonOption.Name = "BigButtonAutoBJ"
-BigButtonOption.Size = UDim2.new(1, -24, 0, 38)
-BigButtonOption.Position = UDim2.new(0, 12, 0, 115)
-
-BigButtonOption.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
+BigButtonOption.Size = UDim2.new(1, -10, 0, 36)
+BigButtonOption.Position = UDim2.new(0, 0, 0, 68)
+BigButtonOption.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 BigButtonOption.TextColor3 = Color3.fromRGB(235, 235, 235)
-
-BigButtonOption.Text = "Big Button Auto BJ"
+BigButtonOption.Text = "Big Button Auto BJ: OFF"
 BigButtonOption.TextSize = 12
 BigButtonOption.Font = Enum.Font.GothamBold
+BigButtonOption.Parent = MainTab
 
-BigButtonOption.AutoButtonColor = true
-BigButtonOption.Parent = MenuFrame
+applyTextStroke(BigButtonOption)
 
-local BigButtonOptionCorner = Instance.new("UICorner")
-BigButtonOptionCorner.CornerRadius = UDim.new(0, 9)
-BigButtonOptionCorner.Parent = BigButtonOption
+local BigOptCorner = Instance.new("UICorner")
+BigOptCorner.CornerRadius = UDim.new(0, 8)
+BigOptCorner.Parent = BigButtonOption
 
-local BigButtonOptionStroke = Instance.new("UIStroke")
-BigButtonOptionStroke.Color = Color3.fromRGB(55, 55, 55)
-BigButtonOptionStroke.Thickness = 1
-BigButtonOptionStroke.Parent = BigButtonOption
-
--- CONEXÕES DO MENU
-MenuButton.MouseButton1Click:Connect(function()
-	MenuFrame.Visible = not MenuFrame.Visible
-end)
+local BigOptStroke = Instance.new("UIStroke")
+BigOptStroke.Color = Color3.fromRGB(120, 120, 120)
+BigOptStroke.Thickness = 1
+BigOptStroke.Parent = BigButtonOption
 
 SaveButton.MouseButton1Click:Connect(function()
 	local Value = tonumber(Input.Text)
@@ -217,8 +383,201 @@ SaveButton.MouseButton1Click:Connect(function()
 		Config.Cooldown = Value
 		Input.Text = tostring(Value)
 	end
-	MenuFrame.Visible = false
+	
+	-- Minimiza suavemente ao salvar
+	if not isAnimating and MenuFrame.Visible then
+		isAnimating = true
+		SavedPosition = MenuFrame.Position
+		local tweenSize = TweenService:Create(MenuFrame, tweenInfo, {
+			Size = UDim2.new(0, MenuButton.AbsoluteSize.X, 0, MenuButton.AbsoluteSize.Y),
+			Position = MenuButton.Position
+		})
+		tweenSize:Play()
+		tweenSize.Completed:Connect(function()
+			MenuFrame.Visible = false
+			isAnimating = false
+		end)
+	end
 end)
+
+--==================================================
+-- ABA 2: BOMB COLOR PICKER
+--==================================================
+
+local PreviewBox = Instance.new("Frame")
+PreviewBox.Size = UDim2.new(0, 22, 0, 22)
+PreviewBox.Position = UDim2.new(0, 0, 0, 0)
+PreviewBox.BackgroundColor3 = bombColor
+PreviewBox.BorderSizePixel = 0
+PreviewBox.Parent = BombColorTab
+
+local PrevCorner = Instance.new("UICorner")
+PrevCorner.CornerRadius = UDim.new(0, 4)
+PrevCorner.Parent = PreviewBox
+
+local HexBox = Instance.new("TextBox")
+HexBox.Size = UDim2.new(0, 90, 0, 22)
+HexBox.Position = UDim2.new(0, 30, 0, 0)
+HexBox.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+HexBox.Text = "#" .. bombColor:ToHex():upper()
+HexBox.TextColor3 = Color3.fromRGB(235, 235, 235)
+HexBox.Font = Enum.Font.SourceSansBold
+HexBox.TextSize = 14
+HexBox.Parent = BombColorTab
+
+applyTextStroke(HexBox)
+
+local HexCorner = Instance.new("UICorner")
+HexCorner.CornerRadius = UDim.new(0, 4)
+HexCorner.Parent = HexBox
+
+local HexStroke = Instance.new("UIStroke")
+HexStroke.Color = Color3.fromRGB(120, 120, 120)
+HexStroke.Thickness = 1
+HexStroke.Parent = HexBox
+
+-- QUADRADO DE SATURAÇÃO / TOM
+local SatValPicker = Instance.new("ImageButton")
+SatValPicker.Name = "SatValPicker"
+SatValPicker.Size = UDim2.new(0, 200, 0, 130)
+SatValPicker.Position = UDim2.new(0, 0, 0, 30)
+SatValPicker.BackgroundColor3 = Color3.fromHSV(currentH, 1, 1)
+SatValPicker.Image = "rbxassetid://4155801252"
+SatValPicker.Parent = BombColorTab
+
+local SVCorner = Instance.new("UICorner")
+SVCorner.CornerRadius = UDim.new(0, 6)
+SVCorner.Parent = SatValPicker
+
+local SVCursor = Instance.new("Frame")
+SVCursor.Size = UDim2.new(0, 10, 0, 10)
+SVCursor.AnchorPoint = Vector2.new(0.5, 0.5)
+SVCursor.Position = UDim2.new(currentS, 0, 1 - currentV, 0)
+SVCursor.BackgroundTransparency = 1
+SVCursor.Parent = SatValPicker
+
+local SVCursorStroke = Instance.new("UIStroke")
+SVCursorStroke.Color = Color3.fromRGB(255, 255, 255)
+SVCursorStroke.Thickness = 2
+SVCursorStroke.Parent = SVCursor
+
+local SVCursorCorner = Instance.new("UICorner")
+SVCursorCorner.CornerRadius = UDim.new(1, 0)
+SVCursorCorner.Parent = SVCursor
+
+-- BARRA HUE
+local HuePicker = Instance.new("TextButton")
+HuePicker.Name = "HuePicker"
+HuePicker.Size = UDim2.new(0, 22, 0, 130)
+HuePicker.Position = UDim2.new(0, 210, 0, 30)
+HuePicker.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+HuePicker.BorderSizePixel = 0
+HuePicker.Text = ""
+HuePicker.AutoButtonColor = false
+HuePicker.Parent = BombColorTab
+
+local HueCorner = Instance.new("UICorner")
+HueCorner.CornerRadius = UDim.new(0, 6)
+HueCorner.Parent = HuePicker
+
+local HueGradient = Instance.new("UIGradient")
+HueGradient.Rotation = 90
+HueGradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 0, 0)),
+	ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 255, 0)),
+	ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 255, 0)),
+	ColorSequenceKeypoint.new(0.50, Color3.fromRGB(0, 255, 255)),
+	ColorSequenceKeypoint.new(0.67, Color3.fromRGB(0, 0, 255)),
+	ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 0, 255)),
+	ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 0, 0))
+})
+HueGradient.Parent = HuePicker
+
+local HueCursor = Instance.new("Frame")
+HueCursor.Size = UDim2.new(1, 4, 0, 4)
+HueCursor.AnchorPoint = Vector2.new(0.5, 0.5)
+HueCursor.Position = UDim2.new(0.5, 0, currentH, 0)
+HueCursor.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+HueCursor.BorderSizePixel = 0
+HueCursor.Parent = HuePicker
+
+local HueCursorStroke = Instance.new("UIStroke")
+HueCursorStroke.Color = Color3.fromRGB(0, 0, 0)
+HueCursorStroke.Thickness = 1
+HueCursorStroke.Parent = HueCursor
+
+local function updateColorOutput()
+	bombColor = Color3.fromHSV(currentH, currentS, currentV)
+	SatValPicker.BackgroundColor3 = Color3.fromHSV(currentH, 1, 1)
+	PreviewBox.BackgroundColor3 = bombColor
+	HexBox.Text = "#" .. bombColor:ToHex():upper()
+end
+
+local draggingSV = false
+local function updateSV(inputObj)
+	local pos = SatValPicker.AbsolutePosition
+	local size = SatValPicker.AbsoluteSize
+	local x = math.clamp((inputObj.Position.X - pos.X) / size.X, 0, 1)
+	local y = math.clamp((inputObj.Position.Y - pos.Y) / size.Y, 0, 1)
+
+	currentS = x
+	currentV = 1 - y
+	SVCursor.Position = UDim2.new(x, 0, y, 0)
+	updateColorOutput()
+end
+
+SatValPicker.InputBegan:Connect(function(inputObj)
+	if inputObj.UserInputType == Enum.UserInputType.MouseButton1 or inputObj.UserInputType == Enum.UserInputType.Touch then
+		draggingSV = true
+		updateSV(inputObj)
+	end
+end)
+
+local draggingHue = false
+local function updateHue(inputObj)
+	local pos = HuePicker.AbsolutePosition
+	local size = HuePicker.AbsoluteSize
+	local y = math.clamp((inputObj.Position.Y - pos.Y) / size.Y, 0, 1)
+
+	currentH = y
+	HueCursor.Position = UDim2.new(0.5, 0, y, 0)
+	updateColorOutput()
+end
+
+HuePicker.InputBegan:Connect(function(inputObj)
+	if inputObj.UserInputType == Enum.UserInputType.MouseButton1 or inputObj.UserInputType == Enum.UserInputType.Touch then
+		draggingHue = true
+		updateHue(inputObj)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(inputObj)
+	if inputObj.UserInputType == Enum.UserInputType.MouseButton1 or inputObj.UserInputType == Enum.UserInputType.Touch then
+		draggingSV = false
+		draggingHue = false
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(inputObj)
+	if (inputObj.UserInputType == Enum.UserInputType.MouseMovement or inputObj.UserInputType == Enum.UserInputType.Touch) then
+		if draggingSV then updateSV(inputObj) end
+		if draggingHue then updateHue(inputObj) end
+	end
+end)
+
+HexBox.FocusLost:Connect(function()
+	local text = HexBox.Text:gsub("#", "")
+	local success, color = pcall(function() return Color3.fromHex(text) end)
+	if success and color then
+		local h, s, v = color:ToHSV()
+		currentH, currentS, currentV = h, s, v
+		SVCursor.Position = UDim2.new(s, 0, 1 - v, 0)
+		HueCursor.Position = UDim2.new(0.5, 0, h, 0)
+		updateColorOutput()
+	end
+end)
+
+updateColorOutput()
 
 --==================================================
 -- BIG BUTTON AUTO BJ
@@ -228,67 +587,55 @@ local BigButtonEnabled = false
 local BigButtonUnlocked = false
 
 local BigButton = Instance.new("TextButton")
-
 BigButton.Name = "BigButtonAutoBJ"
 BigButton.Size = UDim2.new(0, 115, 0, 115)
 BigButton.Position = UDim2.new(0.5, -57, 0.65, 0)
-
-BigButton.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+BigButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 BigButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-
 BigButton.Text = "💣"
 BigButton.TextSize = 52
 BigButton.Font = Enum.Font.GothamBold
-
 BigButton.AutoButtonColor = true
 BigButton.Active = true
 BigButton.Visible = false
 BigButton.Parent = ScreenGui
+
+applyTextStroke(BigButton)
 
 local BigButtonCorner = Instance.new("UICorner")
 BigButtonCorner.CornerRadius = UDim.new(0, 18)
 BigButtonCorner.Parent = BigButton
 
 local BigButtonStroke = Instance.new("UIStroke")
-BigButtonStroke.Color = Color3.fromRGB(255, 255, 255)
+BigButtonStroke.Color = Color3.fromRGB(120, 120, 120)
 BigButtonStroke.Thickness = 2
 BigButtonStroke.Parent = BigButton
 
--- LOCK BUTTON
 local LockButton = Instance.new("TextButton")
-
 LockButton.Name = "BigButtonLock"
 LockButton.Size = UDim2.new(0, 38, 0, 38)
-
-LockButton.Position = UDim2.new(
-	0.5,
-	65,
-	0.65,
-	39
-)
-
-LockButton.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+LockButton.Position = UDim2.new(0.5, 65, 0.65, 39)
+LockButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 LockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-
 LockButton.Text = "🔒"
 LockButton.TextSize = 21
 LockButton.Font = Enum.Font.GothamBold
-
 LockButton.AutoButtonColor = true
 LockButton.Active = true
 LockButton.Visible = false
 LockButton.Parent = ScreenGui
+
+applyTextStroke(LockButton)
 
 local LockCorner = Instance.new("UICorner")
 LockCorner.CornerRadius = UDim.new(0, 10)
 LockCorner.Parent = LockButton
 
 local LockStroke = Instance.new("UIStroke")
-LockStroke.Color = Color3.fromRGB(255, 255, 255)
+LockStroke.Color = Color3.fromRGB(120, 120, 120)
 LockStroke.Thickness = 2
 LockStroke.Parent = LockButton
 
--- TOGGLES
 BigButtonOption.MouseButton1Click:Connect(function()
 	BigButtonEnabled = not BigButtonEnabled
 	BigButton.Visible = BigButtonEnabled
@@ -297,35 +644,28 @@ BigButtonOption.MouseButton1Click:Connect(function()
 	if BigButtonEnabled then
 		BigButtonOption.Text = "Big Button Auto BJ: ON"
 	else
-		BigButtonOption.Text = "Big Button Auto BJ"
+		BigButtonOption.Text = "Big Button Auto BJ: OFF"
 	end
 end)
 
 LockButton.MouseButton1Click:Connect(function()
 	BigButtonUnlocked = not BigButtonUnlocked
-	if BigButtonUnlocked then
-		LockButton.Text = "🔓"
-	else
-		LockButton.Text = "🔒"
-	end
+	LockButton.Text = BigButtonUnlocked and "🔓" or "🔒"
 end)
 
--- DRAG
-local Dragging = false
-local DragInput
-local DragStart
-local StartPosition
+-- ARRASTE DO BIG BUTTON
+local DraggingBig = false
+local DragInputBig, DragStartBig, StartPositionBig
 local WasDragged = false
 
 local function UpdateBigButton(InputObj)
 	if not BigButtonUnlocked then return end
-
-	local Delta = InputObj.Position - DragStart
+	local Delta = InputObj.Position - DragStartBig
 	if Delta.Magnitude > 5 then WasDragged = true end
 
 	BigButton.Position = UDim2.new(
-		StartPosition.X.Scale, StartPosition.X.Offset + Delta.X,
-		StartPosition.Y.Scale, StartPosition.Y.Offset + Delta.Y
+		StartPositionBig.X.Scale, StartPositionBig.X.Offset + Delta.X,
+		StartPositionBig.Y.Scale, StartPositionBig.Y.Offset + Delta.Y
 	)
 
 	LockButton.Position = UDim2.new(
@@ -336,39 +676,36 @@ end
 
 BigButton.InputBegan:Connect(function(InputObj)
 	if not BigButtonUnlocked then return end
-
-	if InputObj.UserInputType == Enum.UserInputType.MouseButton1
-		or InputObj.UserInputType == Enum.UserInputType.Touch then
-		Dragging = true
+	if InputObj.UserInputType == Enum.UserInputType.MouseButton1 or InputObj.UserInputType == Enum.UserInputType.Touch then
+		DraggingBig = true
 		WasDragged = false
-		DragStart = InputObj.Position
-		StartPosition = BigButton.Position
-		DragInput = InputObj
+		DragStartBig = InputObj.Position
+		StartPositionBig = BigButton.Position
+		DragInputBig = InputObj
 	end
 end)
 
 BigButton.InputChanged:Connect(function(InputObj)
-	if InputObj.UserInputType == Enum.UserInputType.MouseMovement
-		or InputObj.UserInputType == Enum.UserInputType.Touch then
-		DragInput = InputObj
+	if InputObj.UserInputType == Enum.UserInputType.MouseMovement or InputObj.UserInputType == Enum.UserInputType.Touch then
+		DragInputBig = InputObj
 	end
 end)
 
 UserInputService.InputChanged:Connect(function(InputObj)
-	if Dragging and BigButtonUnlocked and InputObj == DragInput then
+	if DraggingBig and BigButtonUnlocked and InputObj == DragInputBig then
 		UpdateBigButton(InputObj)
 	end
 end)
 
 UserInputService.InputEnded:Connect(function(InputObj)
-	if InputObj == DragInput then
-		Dragging = false
-		DragInput = nil
+	if InputObj == DragInputBig then
+		DraggingBig = false
+		DragInputBig = nil
 	end
 end)
 
 --==================================================
--- TOOL & BOMBA
+-- TOOL & BOMBA COM COR CUSTOMIZADA
 --==================================================
 
 local function GiveTool()
@@ -389,10 +726,6 @@ local function GiveTool()
 		if Cooldown then return end
 		if not Character or not Humanoid or Humanoid.Health <= 0 or not Root or not Root.Parent then return end
 		if Tool.Parent ~= Character then return end
-
-		-- REMOVIDA A LIMITAÇÃO DE FREEFALL:
-		-- agora pode ativar a bomba independentemente
-		-- de estar caindo, pulando ou no chão.
 
 		Cooldown = true
 
@@ -419,7 +752,7 @@ local function GiveTool()
 		Bomb.CanTouch = true
 		Bomb.CanQuery = false
 		Bomb.Material = Enum.Material.SmoothPlastic
-		Bomb.Color = Color3.fromRGB(8, 8, 8)
+		Bomb.Color = bombColor
 		Bomb.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.78, 0.15, 1, 1)
 		Bomb.Parent = workspace
 
@@ -464,7 +797,7 @@ local function GiveTool()
 				Flash.CanTouch = false
 				Flash.CanQuery = false
 				Flash.Material = Enum.Material.Neon
-				Flash.Color = Color3.fromRGB(255, 220, 70)
+				Flash.Color = bombColor
 				Flash.Transparency = 0.05
 				Flash.Parent = workspace
 
@@ -492,7 +825,7 @@ local function GiveTool()
 					NumberSequenceKeypoint.new(0.25, 0.8),
 					NumberSequenceKeypoint.new(1, 0)
 				})
-				ExplosionParticles.Color = ColorSequence.new(Color3.fromRGB(255, 245, 110), Color3.fromRGB(255, 110, 10))
+				ExplosionParticles.Color = ColorSequence.new(bombColor)
 				ExplosionParticles.Parent = ParticlePart
 				ExplosionParticles:Emit(85)
 
